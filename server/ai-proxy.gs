@@ -10,10 +10,10 @@
  *   DAILY_LIMIT  : 하루 최대 분석 횟수 (선택, 기본 300) — 키를 누가 몰래 쓰더라도 사용량이 이 안에서 멈춘다
  *   STATS_SHEET_ID : 사용 통계 구글 시트 ID (적지 않아도 됨 — testStats()를 한 번 실행하면 시트를 만들고 저절로 채운다)
  *
- * 📊 사용 통계 (doGet ?t=stats): 앱이 하루 한 번 숫자만 보낸다 → 구글 시트 두 장에 적는다
- *   [날짜별] 받은 그대로 한 줄씩
- *   [번호별] 번호(=폰 하나)마다 한 줄: 처음·마지막으로 쓴 날, 쓴 날 수, 지금 사진·물건 수
- *            "매장 메모" 칸은 비워 두니 세팅해 드린 매장 이름을 직접 적는다 (앱은 매장 이름을 보내지 않는다)
+ * 📊 사용 통계 (doGet ?t=stats): 앱이 무작위 번호와 "앱을 쓴 날짜"만 보낸다 → 구글 시트 두 장에 적는다
+ *   [쓴 날] 받은 그대로 한 줄씩 (번호, 쓴 날)
+ *   [번호]  번호(=폰 하나)마다 한 줄: 처음·마지막으로 쓴 날, 쓴 날 수
+ *          "매장 메모" 칸은 비워 두니 세팅해 드린 매장 이름을 직접 적는다 (앱은 매장 이름을 보내지 않는다)
  *
  * 배포: [배포] → [배포 관리] → 연필(수정) → 버전 "새 버전" → [배포]
  *   (새 배포를 만들면 주소가 바뀌므로, 기존 배포를 수정해야 앱의 주소가 그대로 유지된다)
@@ -60,16 +60,14 @@ function doGet(e) {
   return json_({ status: 'ok' });
 }
 
-var STATS_COUNTS = ['open', 'search', 'find', 'print', 'edit'];
 var STATS_DAILY_LIMIT = 3000; // 누가 장난으로 계속 보내도 하루 이만큼에서 멈춘다
 
+// 앱이 보내는 것은 번호(id)와 쓴 날짜(days: "2026-10-12,2026-10-13")뿐이다
 function saveStats_(p) {
   var id = String(p.id || '');
   if (!/^[A-Z0-9]{6}$/.test(id)) return { status: 'error', message: 'bad id' };
-  var day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
-  var num = function (k) { var n = parseInt(p[k], 10); return isNaN(n) || n < 0 ? 0 : Math.min(n, 100000); };
-  var text = function (k, max) { return String(p[k] || '').replace(/^[=+\-@]+/, '').slice(0, max); }; // 시트 수식으로 읽히지 않게
-  var os = ['ios', 'android', 'pc'].indexOf(p.os) >= 0 ? p.os : '';
+  var days = String(p.days || '').split(',').filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); }).slice(-31).sort();
+  if (!days.length) return { status: 'error', message: 'no days' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -78,23 +76,22 @@ function saveStats_(p) {
     if (!takeStatsQuota_(props)) return { status: 'limit' };
     var ss = statsSpreadsheet_(props);
 
-    var log = sheet_(ss, '날짜별', ['받은 시각', '번호', '날짜', '앱 버전', '기기', '앱 설치', '사진', '구역', '물건', '연 횟수', '검색', '찾기', '인쇄', '고친 횟수']);
-    log.appendRow([new Date(), id, day, text('v', 30), os, p.app === '1' ? 'Y' : '', num('photos'), num('zones'), num('items')]
-      .concat(STATS_COUNTS.map(num)));
+    var log = sheet_(ss, '쓴 날', ['받은 시각', '번호', '쓴 날']);
+    var received = new Date();
+    days.forEach(function (d) { log.appendRow([received, id, d]); });
 
-    var byId = sheet_(ss, '번호별', ['번호', '매장 메모 (직접 적기)', '처음 쓴 날', '마지막 쓴 날', '쓴 날 수', '사진', '구역', '물건', '기기', '앱 설치', '앱 버전']);
+    var byId = sheet_(ss, '번호', ['번호', '매장 메모 (직접 적기)', '처음 쓴 날', '마지막 쓴 날', '쓴 날 수']);
     var last = byId.getLastRow();
     var ids = last > 1 ? byId.getRange(2, 1, last - 1, 1).getValues() : [];
     var row = 0;
     for (var i = 0; i < ids.length; i++) { if (ids[i][0] === id) { row = i + 2; break; } }
-    var now = [num('photos'), num('zones'), num('items'), os, p.app === '1' ? 'Y' : '', text('v', 30)];
     if (!row) {
-      byId.appendRow([id, '', day, day, 1].concat(now));
+      byId.appendRow([id, '', days[0], days[days.length - 1], days.length]);
     } else {
-      var cur = byId.getRange(row, 3, 1, 3).getValues()[0]; // 처음·마지막·쓴 날 수
-      var lastDay = cur[1] instanceof Date ? Utilities.formatDate(cur[1], 'Asia/Seoul', 'yyyy-MM-dd') : String(cur[1]);
-      var days = (parseInt(cur[2], 10) || 0) + (lastDay === day ? 0 : 1);
-      byId.getRange(row, 4, 1, 8).setValues([[day, days].concat(now)]);
+      var cur = byId.getRange(row, 4, 1, 2).getValues()[0]; // 마지막 쓴 날·쓴 날 수
+      var lastDay = cur[0] instanceof Date ? Utilities.formatDate(cur[0], 'Asia/Seoul', 'yyyy-MM-dd') : String(cur[0]);
+      var newer = days.filter(function (d) { return d > lastDay; }); // 이미 센 날(같은 날 두 번 받음)은 다시 세지 않는다
+      if (newer.length) byId.getRange(row, 4, 1, 2).setValues([[newer[newer.length - 1], (parseInt(cur[1], 10) || 0) + newer.length]]);
     }
     return { status: 'success' };
   } finally {
@@ -162,7 +159,7 @@ function json_(obj) {
 function testStats() {
   var props = PropertiesService.getScriptProperties();
   var ss = statsSpreadsheet_(props);
-  saveStats_({ id: 'TEST00', day: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'), v: 'test', os: 'pc', photos: '0', zones: '0', items: '0' });
+  saveStats_({ id: 'TEST00', days: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd') });
   Logger.log('통계 시트: ' + ss.getUrl());
 }
 
