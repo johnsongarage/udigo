@@ -1533,7 +1533,7 @@
         <tr><th>이 폰</th><td>사진, 구역, 물건, 메모 전부<small>항상</small></td></tr>
         <tr><th>Roboflow<br><small style="font-weight: 400; color: var(--text3);">미국</small></th><td>사진 1장 (저장하지 않도록 설정)<small>[AI로 구역 찾기]를 누를 때만 · Google 중계 서버를 거쳐 전달</small></td></tr>
         <tr><th>Google 폼</th><td>직접 적은 의견<small>[의견 보내기]를 쓸 때만</small></td></tr>
-        <tr><th>Google 시트<br><small style="font-weight: 400; color: var(--text3);">사용 통계</small></th><td>숫자만: 사진·물건 수, 검색·인쇄 횟수, 기기 종류, 무작위 번호<small>하루 한 번 · 사진·이름·메모는 보내지 않음 · 설정에서 끌 수 있음</small></td></tr>
+        <tr><th>Google 시트<br><small style="font-weight: 400; color: var(--text3);">사용 통계</small></th><td>앱을 쓴 날짜와 무작위 번호만<small>하루 한 번 · 사진·이름·메모·개수는 보내지 않음 · 설정에서 끌 수 있음</small></td></tr>
         <tr><th>Cloudflare<br><small style="font-weight: 400; color: var(--text3);">방문 통계</small></th><td>이 페이지를 연 기록 (쿠키 없음)<small>몇 명이 들어왔는지 세는 용도</small></td></tr>
     </table>
     <p style="font-size: 12.5px; color: var(--text3); margin: 10px 0 14px; word-break: keep-all;">회원가입이 없어서 사진·물건 같은 내용은 우리 서버에 저장하지 않아요. 폰을 바꾸기 전에는 설정에서 백업 파일을 받아 두세요.</p>
@@ -4018,7 +4018,6 @@
         try { const dataToSave = imageList.map(data => ({ id: data.id, title: data.title, imgData: (data.img && data.img.src) ? data.img.src : null, zones: data.zones })); safeStorage.setItem('savedSystemData', JSON.stringify(dataToSave)); } catch (e) {}
         try { safeStorage.setItem('baseItems', JSON.stringify(baseItems)); } catch(e) {}
         try { safeStorage.setItem('dataChangedAt', String(Date.now())); } catch(e) {} // 마지막 백업 뒤에 바뀐 게 있는지 (백업 안내 띠)
-        countStat('edit');
     }
     // 입력칸 Enter/“새로 추가” 줄: 목록에 같은 이름이 있으면 체크만, 없으면 새 품목으로 만들고 체크
     function addNewItem() {
@@ -4209,7 +4208,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.12.2';
+    const APP_VERSION = '베타 2026.10.12.3';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -4430,51 +4429,45 @@
         const u = readUsage(), t = new Date(), today = `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`; // 기기 시간 기준 날짜
         if (!u.days.includes(today)) { u.days = [...u.days, today].slice(-10); writeUsage(u); }
     }
-    function recordFind() { if (!isRealUse()) return; const u = readUsage(); u.finds = (u.finds || 0) + 1; writeUsage(u); countStat('find'); }
+    function recordFind() { if (!isRealUse()) return; const u = readUsage(); u.finds = (u.finds || 0) + 1; writeUsage(u); }
 
-    // 📊 사용 통계: 매장이 계속 쓰는지 보려고, 하루 한 번 인터넷이 될 때 "숫자만" 익명으로 보낸다
-    //   보내는 것: 무작위 번호(예: K7Q2MX), 날짜, 앱 버전, 기기 종류, 사진·구역·물건 수, 연 횟수·검색·찾기·인쇄·고친 횟수
-    //   보내지 않는 것: 사진, 물건·구역·사진 이름, 메모, 매장 이름
+    // 📊 사용 통계: 매장이 계속 쓰는지(썼냐 안 썼냐)만 보려고, "쓴 날짜"만 익명으로 보낸다
+    //   보내는 것: 무작위 번호(예: K7Q2MX) + 앱을 쓴 날짜. 그 밖의 것(사진·이름·메모·개수·횟수·기기)은 보내지 않는다
+    //   인터넷 없이 쓴 날은 폰에 모아 뒀다가(최대 31일) 다음에 연결될 때 그 날짜 그대로 보낸다
     //   받는 곳: AI 중계와 같은 Google Apps Script(server/ai-proxy.gs의 doGet) → 구글 시트
     //   예시 데이터만 있을 때는 세지 않는다(isRealUse). 설정 > [사용 통계 보내기]를 끄면 아무것도 보내지 않는다(방문자 통계도 안 불러옴)
-    const STATS_KEY = 'statsQueue', STATS_OFF_KEY = 'statsOff', STATS_COUNTS = ['open', 'search', 'find', 'print', 'edit'];
+    const STATS_KEY = 'statsQueue', STATS_OFF_KEY = 'statsOff';
     function statsOff() { return safeStorage.getItem(STATS_OFF_KEY) === '1'; }
     function readStats() {
         let s = null; try { s = JSON.parse(safeStorage.getItem(STATS_KEY)); } catch (e) {}
         if (!s || !/^[A-Z0-9]{6}$/.test(s.id || '')) {
             const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 헷갈리는 0·O·1·I는 뺐다 (기록표에 옮겨 적기 쉽게)
-            s = { id: Array.from({ length: 6 }, () => abc[Math.floor(Math.random() * abc.length)]).join(''), sent: '', openAt: 0 };
-            writeStats(s);
+            s = { id: Array.from({ length: 6 }, () => abc[Math.floor(Math.random() * abc.length)]).join('') };
         }
-        STATS_COUNTS.forEach(k => { s[k] = s[k] || 0; });
-        return s;
+        return { id: s.id, days: Array.isArray(s.days) ? s.days : [] }; // 예전 버전이 남긴 개수·횟수는 버린다
     }
     function writeStats(s) { try { safeStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {} }
     function statsDay() { const t = new Date(), p = n => String(n).padStart(2, '0'); return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`; }
-    function countStat(kind) { if (statsOff() || !isRealUse()) return; const s = readStats(); s[kind]++; writeStats(s); }
-    // 앱을 열 때·다시 돌아올 때: 30분 넘게 지났으면 "연 횟수" 하나 더 (설치한 앱은 껐다 켜지 않고 뒤에서 돌아오는 일이 많다)
-    function countOpen() {
+    // 앱을 열거나 다시 돌아올 때: 오늘 날짜를 "보낼 날" 목록에 (같은 날은 한 번만)
+    function markUsedToday() {
         if (statsOff() || !isRealUse()) return;
-        const s = readStats(); if (Date.now() - (s.openAt || 0) < 30 * 60 * 1000) return;
-        s.open++; s.openAt = Date.now(); writeStats(s);
+        const s = readStats(), day = statsDay(), sent = safeStorage.getItem('statsSentDay');
+        if (sent === day || s.days.includes(day)) return;
+        s.days = [...s.days, day].slice(-31); writeStats(s);
     }
     let statsSending = false;
     function sendDailyStats() {
-        if (statsSending || statsOff() || !isRealUse() || !navigator.onLine) return;
-        const s = readStats(), day = statsDay(); if (s.sent === day) return;
-        const photos = imageList.filter(d => d.id !== 'dummy_root');
-        const q = new URLSearchParams({
-            t: 'stats', id: s.id, day, v: APP_VERSION, os: isIOS() ? 'ios' : /android/i.test(navigator.userAgent) ? 'android' : 'pc', app: isInstalledApp() ? 1 : 0,
-            photos: photos.length, zones: photos.reduce((n, d) => n + d.zones.length, 0), items: photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0)
-        });
-        STATS_COUNTS.forEach(k => q.set(k, s[k]));
+        if (statsSending || statsOff() || !navigator.onLine) return;
+        const s = readStats(); if (!s.days.length) return;
+        const days = s.days.slice(), q = new URLSearchParams({ t: 'stats', id: s.id, days: days.join(',') });
         statsSending = true;
-        // Apps Script는 다른 주소로 한 번 넘겨서 답하므로 응답은 읽지 않는다(no-cors). 보내는 데 성공하면 보낸 만큼만 빼서 그사이 센 것은 남긴다
+        // Apps Script는 다른 주소로 한 번 넘겨서 답하므로 응답은 읽지 않는다(no-cors). 보내고 나면 보낸 날만 목록에서 뺀다
         fetch(`${AI_PROXY_URL}?${q}`, { mode: 'no-cors', keepalive: true }).then(() => {
-            const now = readStats(); now.sent = day; STATS_COUNTS.forEach(k => { now[k] = Math.max(0, now[k] - s[k]); }); writeStats(now);
+            const now = readStats(); now.days = now.days.filter(d => !days.includes(d)); writeStats(now);
+            safeStorage.setItem('statsSentDay', days[days.length - 1]);
         }).catch(() => {}).finally(() => { statsSending = false; });
     }
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { countOpen(); sendDailyStats(); } });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { markUsedToday(); sendDailyStats(); } });
     window.addEventListener('online', sendDailyStats);
 
     // 🌐 방문자 통계 (Cloudflare Web Analytics, 쿠키 없음): 토큰을 넣어야 켜진다. 처음 온 사람(예시만 보는 사람)도 센다
@@ -4496,8 +4489,9 @@
         const off = !statsOff();
         if (off) safeStorage.setItem(STATS_OFF_KEY, '1'); else safeStorage.removeItem(STATS_OFF_KEY);
         syncStatsRow();
-        if (typeof showToast === 'function') showToast(off ? '사용 통계를 보내지 않아요' : '사용 통계를 하루 한 번 숫자만 보내요');
-        if (!off) { loadVisitStats(); countOpen(); sendDailyStats(); }
+        if (typeof showToast === 'function') showToast(off ? '사용 통계를 보내지 않아요' : '앱을 쓴 날짜만 보내요');
+        if (off) { const st = readStats(); st.days = []; writeStats(st); } // 끄면 아직 안 보낸 날도 버린다
+        else { loadVisitStats(); markUsedToday(); sendDailyStats(); }
     }
     function isFamiliarUser() { const u = readUsage(); return u.days.length >= INSTALL_AFTER_DAYS || (u.finds || 0) >= INSTALL_AFTER_FINDS; }
     // 위쪽 안내 띠는 한 번에 하나만: 예시 띠가 떠 있으면 설치 안내는 다음에
@@ -4848,7 +4842,6 @@
 
     // 결과를 실제로 골랐을 때만 기록 (타이핑 중간 글자는 남기지 않음)
     function recordSearchPick(query, name) {
-        countStat('search');
         const q = (query || '').trim();
         if (q) {
             const history = loadSearchStore(SEARCH_HISTORY_KEY, []).filter(h => h !== q);
@@ -6145,7 +6138,6 @@
             const F = PRINT_FORMS[printOpts.form] || PRINT_FORMS.map, one = photos.length > 1 && printScope !== 'all' ? photos.find(d => d.id == printPreviewId) : null;
             const part = one ? '_' + (one.title || '').replace(/[\\/:*?"<>|\s]+/g, '').slice(0, 20) : '';
             doc.save(`${storeFileName() || APP_NAME}_${F.file}${part}_${fileDate()}.pdf`);
-            countStat('print');
         } catch (error) {
             console.error("PDF 생성 중 오류 발생:", error);
             alert("PDF 생성 중 문제가 발생했습니다.");
@@ -6214,7 +6206,7 @@
                 }
             }
             recordUsageDay();
-            countOpen(); setTimeout(sendDailyStats, 3000); // 화면을 다 그린 뒤에 보낸다
+            markUsedToday(); setTimeout(sendDailyStats, 3000); // 화면을 다 그린 뒤에 보낸다
             // 띠는 한 번에 하나: 기간 한정 이벤트(한 번 닫으면 끝) → 백업 안내(다음에 다시 뜸) → 설치 안내
             maybeShowPromoBanner();
             maybeShowBackupBanner();
