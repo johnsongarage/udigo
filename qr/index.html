@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>창고여지도</title>
+<!-- 인쇄물 오른쪽 아래 QR이 여는 페이지: 방문자 통계(Cloudflare)에 /udigo/qr/ 로 한 번 남기고 바로 앱으로 넘긴다
+     (index.html의 CF_ANALYTICS_TOKEN과 같은 토큰. 사용 통계를 끈 사람도 여기서는 페이지 방문 한 번만 세어진다 — 쿠키 없음) -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "273e5309e3764e809f02aab7f9942c5c"}'></script>
+<style>
+  html, body { margin: 0; height: 100%; background: #f6f3ec; color: #1a1a18; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  @media (prefers-color-scheme: dark) { html, body { background: #1a1a18; color: #f6f3ec; } a { color: #f6f3ec; } }
+  main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 16px; text-align: center; }
+  a { color: #1a1a18; font-size: 15px; }
+</style>
+</head>
+<body>
+<main>
+  <b style="font-size: 20px;">창고여지도</b>
+  <span>여는 중…</span>
+  <a href="../">바로 열기</a>
+</main>
+<script>
+  // 통계가 한 번 잡힐 틈만 주고 넘어간다 (뒤로 가기에 이 페이지가 남지 않게 replace)
+  setTimeout(function () { location.replace('../'); }, 500);
+</script>
+</body>
+</html>
