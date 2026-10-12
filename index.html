@@ -4208,7 +4208,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.12.3';
+    const APP_VERSION = '베타 2026.10.12.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5267,7 +5267,6 @@
         ['storeNameInput', 'printStoreName'].forEach(id => { const el = document.getElementById(id); if (el && el !== document.activeElement) el.value = v; });
     }
     function printHeadDate(dateStr) { const n = storeName(); return n ? `${n} · ${dateStr}` : dateStr; }
-    function printBrand() { return storeName() || APP_NAME; }
     function storeFileName() { return storeName().replace(/[\\/:*?"<>|\s.]+/g, ''); } // 파일 이름에 못 쓰는 글자·띄어쓰기 빼고
     // 쪽 하나를 다 그린 캔버스 → PDF용 JPEG. 미리보기는 PRINT.raw로 캔버스를 그대로 받아 작게 줄여 쓴다 (큰 JPEG 만들기가 가장 느렸다)
     function printOut(canvas) { return PRINT.raw ? canvas : canvas.toDataURL('image/jpeg', 0.92); }
@@ -5511,11 +5510,7 @@
             });
 
             // 아래 안내: 종이는 바뀌면 낡으니, 고치고 다시 뽑는 습관을 알려준다
-            ctx.strokeStyle = PRINT.line; ctx.lineWidth = printPx(0.3); ctx.beginPath();
-            ctx.moveTo(margin, pageH - margin - printPx(7)); ctx.lineTo(pageW - margin, pageH - margin - printPx(7)); ctx.stroke();
-            ctx.font = footFont; ctx.fillStyle = PRINT.sub; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-            ctx.fillText(`${dateStr} · 위치가 바뀌면 앱에서 고치고 다시 뽑아 붙이세요`, margin, pageH - margin - printPx(1));
-            ctx.textAlign = 'right'; ctx.fillText(printBrand(), pageW - margin, pageH - margin - printPx(1));
+            drawPrintFoot(ctx, `${dateStr} · 위치가 바뀌면 앱에서 고치고 다시 뽑아 붙이세요`);
 
             return printOut(canvas);
         });
@@ -5638,11 +5633,7 @@
                     ry = rowTop + row.h - (row.init && rowTop === cy && rows.indexOf(row) > 0 ? groupGap : 0);
                 });
             });
-            ctx.strokeStyle = PRINT.line; ctx.lineWidth = printPx(0.3); ctx.beginPath();
-            ctx.moveTo(margin, pageH - margin - printPx(7)); ctx.lineTo(pageW - margin, pageH - margin - printPx(7)); ctx.stroke();
-            ctx.font = footFont; ctx.fillStyle = PRINT.sub; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-            ctx.fillText(`${dateStr} · 창고 입구에 붙여 두세요 · 위치가 바뀌면 앱에서 고치고 다시 뽑기`, margin, pageH - margin - printPx(1));
-            ctx.textAlign = 'right'; ctx.fillText(printBrand(), pageW - margin, pageH - margin - printPx(1));
+            drawPrintFoot(ctx, `${dateStr} · 창고 입구에 붙여 두세요 · 위치가 바뀌면 앱에서 고치고 다시 뽑기`);
             return printOut(canvas);
         });
     }
@@ -5671,12 +5662,33 @@
         if (sub) { ctx.textAlign = 'left'; ctx.fillStyle = PRINT.sub; ctx.font = `${printPx(3.6)}px sans-serif`; ctx.fillText(sub, m, y + printPx(3.6)); y += printPx(7); }
         return y;
     }
+    // 아래 안내 줄: 왼쪽 안내 글 + 오른쪽 아래 구석에 작은 QR과 "이 종이를 만든 앱" (늘 넣는다 — 빼 달라는 매장이 생기면 그때 옵션을 둔다)
+    //   매장 이름은 맨 위 날짜 옆에 있으니, 여기에는 앱 이름을 둔다
     function drawPrintFoot(ctx, text) {
-        const pageW = printPx(PRINT.pageWmm), pageH = printPx(PRINT.pageHmm), m = printPx(PRINT.marginMm);
-        ctx.strokeStyle = PRINT.line; ctx.lineWidth = printPx(0.3); ctx.beginPath(); ctx.moveTo(m, pageH - m - printPx(7)); ctx.lineTo(pageW - m, pageH - m - printPx(7)); ctx.stroke();
-        ctx.font = `${printPx(3.2)}px sans-serif`; ctx.fillStyle = PRINT.sub; ctx.textBaseline = 'alphabetic';
-        ctx.textAlign = 'left'; ctx.fillText(text, m, pageH - m - printPx(1));
-        ctx.textAlign = 'right'; ctx.fillText(printBrand(), pageW - m, pageH - m - printPx(1));
+        const pageW = printPx(PRINT.pageWmm), pageH = printPx(PRINT.pageHmm), m = printPx(PRINT.marginMm), base = pageH - m - printPx(1);
+        const right = drawPrintQr(ctx) - printPx(3);
+        ctx.strokeStyle = PRINT.line; ctx.lineWidth = printPx(0.3); ctx.beginPath(); ctx.moveTo(m, pageH - m - printPx(7)); ctx.lineTo(right, pageH - m - printPx(7)); ctx.stroke();
+        ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'right';
+        ctx.font = `bold ${printPx(3.2)}px sans-serif`; ctx.fillStyle = PRINT.ink; ctx.fillText(APP_NAME, right, base); const brandW = ctx.measureText(APP_NAME).width;
+        ctx.font = `${printPx(2.6)}px sans-serif`; ctx.fillStyle = PRINT.sub; ctx.fillText('이 종이를 만든 앱 · QR로 열기', right, base + printPx(4.5));
+        ctx.font = `${printPx(3.2)}px sans-serif`; ctx.fillStyle = PRINT.sub; ctx.textAlign = 'left';
+        ctx.fillText(text, m, base, Math.max(printPx(40), right - m - brandW - printPx(4))); // 길면 살짝 좁혀서 겹치지 않게
+    }
+    // 📱 인쇄물 QR: 찍으면 qr/ 페이지 → 바로 앱 첫 화면 (방문자 통계에서 /udigo/qr/ 방문 수 = 인쇄물로 들어온 사람)
+    //   이 매장 지도가 열리는 게 아니라 "이 종이를 만든 앱"이 열린다 (지도는 사장님 폰에만 있음)
+    //   무늬는 미리 만들어 넣었다(인터넷 없이도 인쇄되게): 주소를 바꾸면 python3 tools/make_print_qr.py 새주소 → 아래 두 줄 교체
+    //   주소가 짧을수록 칸 수가 줄어 같은 크기에서 더 잘 찍힌다 (지금 29×29칸)
+    const PRINT_QR_URL = 'https://trafficjourney.github.io/udigo/qr/';
+    const PRINT_QR = ["1fca6f7f", "1040e541", "17445c5d", "1744455d", "1747745d", "105c2e41", "1fd5557f", "00026d00", "12da90a0", "092911c9", "15ff178e", "0802b4e6", "076b8bcb", "05214f80", "0b7c081f", "1234d82a", "00672a82", "010488e9", "134ec443", "073c0923", "1675b1f4", "001b1d17", "1fca1152", "1053a51f", "174a79f0", "175b8b5e", "174a571d", "104cdbe2", "1fd5ad72"];
+    let printQrBits = null;
+    function drawPrintQr(ctx) { // 오른쪽 아래 구석에 그리고 QR 왼쪽 끝 x를 돌려준다
+        if (!printQrBits) printQrBits = PRINT_QR.map(h => h.split('').map(c => parseInt(c, 16).toString(2).padStart(4, '0')).join('').slice(-PRINT_QR.length));
+        const n = printQrBits.length, cell = Math.max(1, Math.round(0.6 * PRINT.pxPerMm)), size = n * cell; // 한 칸 약 0.6mm → 약 18mm
+        // 본문은 바닥에서 23mm 위(pageH - 여백 - 9mm)에서 끝나므로, 바닥에서 4.5mm 띄우면 본문과 겹치지 않는다
+        const x0 = printPx(PRINT.pageWmm) - printPx(PRINT.marginMm) - size, y0 = printPx(PRINT.pageHmm) - printPx(4.5) - size;
+        ctx.fillStyle = '#000000'; // 잉크 절약일 때도 QR은 진하게
+        printQrBits.forEach((row, r) => { for (let c = 0; c < n; c++) if (row[c] === '1') ctx.fillRect(x0 + c * cell, y0 + r * cell, cell, cell); });
+        return x0;
     }
     // 사진 순서대로 모든 칸: { code: "3" 또는 "A-3", photo, zone, num }
     function printZoneList(photos) {
