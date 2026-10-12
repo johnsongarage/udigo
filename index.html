@@ -4209,7 +4209,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.12';
+    const APP_VERSION = '베타 2026.10.12.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -4479,7 +4479,7 @@
 
     // 🌐 방문자 통계 (Cloudflare Web Analytics, 쿠키 없음): 토큰을 넣어야 켜진다. 처음 온 사람(예시만 보는 사람)도 센다
     //   토큰 받는 곳: Cloudflare 대시보드 > Web Analytics > Add a site > trafficjourney.github.io → 나오는 코드의 "token" 값
-    const CF_ANALYTICS_TOKEN = '';
+    const CF_ANALYTICS_TOKEN = '273e5309e3764e809f02aab7f9942c5c';
     function loadVisitStats() {
         if (!CF_ANALYTICS_TOKEN || statsOff() || document.getElementById('cfBeacon')) return;
         const sc = document.createElement('script');
