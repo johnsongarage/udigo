@@ -8,6 +8,12 @@
  * 설정 (프로젝트 설정 ⚙ → 스크립트 속성)
  *   ROBOFLOW_KEY : Roboflow API 키 (필수)
  *   DAILY_LIMIT  : 하루 최대 분석 횟수 (선택, 기본 300) — 키를 누가 몰래 쓰더라도 사용량이 이 안에서 멈춘다
+ *   STATS_SHEET_ID : 사용 통계 구글 시트 ID (적지 않아도 됨 — testStats()를 한 번 실행하면 시트를 만들고 저절로 채운다)
+ *
+ * 📊 사용 통계 (doGet ?t=stats): 앱이 하루 한 번 숫자만 보낸다 → 구글 시트 두 장에 적는다
+ *   [날짜별] 받은 그대로 한 줄씩
+ *   [번호별] 번호(=폰 하나)마다 한 줄: 처음·마지막으로 쓴 날, 쓴 날 수, 지금 사진·물건 수
+ *            "매장 메모" 칸은 비워 두니 세팅해 드린 매장 이름을 직접 적는다 (앱은 매장 이름을 보내지 않는다)
  *
  * 배포: [배포] → [배포 관리] → 연필(수정) → 버전 "새 버전" → [배포]
  *   (새 배포를 만들면 주소가 바뀌므로, 기존 배포를 수정해야 앱의 주소가 그대로 유지된다)
@@ -45,8 +51,84 @@ function doPost(e) {
 }
 
 // 예전 앱은 여기서 키를 받아 갔다. 이제 키는 돌려주지 않는다 (새 앱이 반영된 뒤 이 상태로 배포).
-function doGet() {
+// ?t=stats 는 사용 통계 받기
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  if (p.t === 'stats') {
+    try { return json_(saveStats_(p)); } catch (err) { return json_({ status: 'error', message: String(err && err.message || err) }); }
+  }
   return json_({ status: 'ok' });
+}
+
+var STATS_COUNTS = ['open', 'search', 'find', 'print', 'edit'];
+var STATS_DAILY_LIMIT = 3000; // 누가 장난으로 계속 보내도 하루 이만큼에서 멈춘다
+
+function saveStats_(p) {
+  var id = String(p.id || '');
+  if (!/^[A-Z0-9]{6}$/.test(id)) return { status: 'error', message: 'bad id' };
+  var day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  var num = function (k) { var n = parseInt(p[k], 10); return isNaN(n) || n < 0 ? 0 : Math.min(n, 100000); };
+  var text = function (k, max) { return String(p[k] || '').replace(/^[=+\-@]+/, '').slice(0, max); }; // 시트 수식으로 읽히지 않게
+  var os = ['ios', 'android', 'pc'].indexOf(p.os) >= 0 ? p.os : '';
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    if (!takeStatsQuota_(props)) return { status: 'limit' };
+    var ss = statsSpreadsheet_(props);
+
+    var log = sheet_(ss, '날짜별', ['받은 시각', '번호', '날짜', '앱 버전', '기기', '앱 설치', '사진', '구역', '물건', '연 횟수', '검색', '찾기', '인쇄', '고친 횟수']);
+    log.appendRow([new Date(), id, day, text('v', 30), os, p.app === '1' ? 'Y' : '', num('photos'), num('zones'), num('items')]
+      .concat(STATS_COUNTS.map(num)));
+
+    var byId = sheet_(ss, '번호별', ['번호', '매장 메모 (직접 적기)', '처음 쓴 날', '마지막 쓴 날', '쓴 날 수', '사진', '구역', '물건', '기기', '앱 설치', '앱 버전']);
+    var last = byId.getLastRow();
+    var ids = last > 1 ? byId.getRange(2, 1, last - 1, 1).getValues() : [];
+    var row = 0;
+    for (var i = 0; i < ids.length; i++) { if (ids[i][0] === id) { row = i + 2; break; } }
+    var now = [num('photos'), num('zones'), num('items'), os, p.app === '1' ? 'Y' : '', text('v', 30)];
+    if (!row) {
+      byId.appendRow([id, '', day, day, 1].concat(now));
+    } else {
+      var cur = byId.getRange(row, 3, 1, 3).getValues()[0]; // 처음·마지막·쓴 날 수
+      var lastDay = cur[1] instanceof Date ? Utilities.formatDate(cur[1], 'Asia/Seoul', 'yyyy-MM-dd') : String(cur[1]);
+      var days = (parseInt(cur[2], 10) || 0) + (lastDay === day ? 0 : 1);
+      byId.getRange(row, 4, 1, 8).setValues([[day, days].concat(now)]);
+    }
+    return { status: 'success' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function statsSpreadsheet_(props) {
+  var sid = props.getProperty('STATS_SHEET_ID');
+  if (sid) return SpreadsheetApp.openById(sid);
+  var ss = SpreadsheetApp.create('창고여지도 사용 통계');
+  props.setProperty('STATS_SHEET_ID', ss.getId());
+  return ss;
+}
+
+function sheet_(ss, name, header) {
+  var sh = ss.getSheetByName(name);
+  if (sh) return sh;
+  sh = ss.insertSheet(name);
+  sh.appendRow(header);
+  sh.setFrozenRows(1);
+  sh.getRange(1, 1, 1, header.length).setFontWeight('bold');
+  var first = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1'); // 새 시트에 딸려 온 빈 탭은 지운다
+  if (first && first.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(first);
+  return sh;
+}
+
+function takeStatsQuota_(props) {
+  var today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  if (props.getProperty('STATS_DAY') !== today) { props.setProperty('STATS_DAY', today); props.setProperty('STATS_COUNT', '0'); }
+  var count = parseInt(props.getProperty('STATS_COUNT') || '0', 10);
+  if (count >= STATS_DAILY_LIMIT) return false;
+  props.setProperty('STATS_COUNT', String(count + 1));
+  return true;
 }
 
 // 하루 사용량 세기 (동시에 여러 요청이 와도 숫자가 꼬이지 않게 잠금)
@@ -73,6 +155,15 @@ function takeDailyQuota_(props) {
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 편집기에서 한 번 실행하면 시트 권한을 허용하는 창이 뜨고, 통계 시트를 만들어 주소를 로그에 남긴다.
+// (시험으로 TEST00 번호를 한 줄 적는다 — 확인한 뒤 시트에서 지워도 된다)
+function testStats() {
+  var props = PropertiesService.getScriptProperties();
+  var ss = statsSpreadsheet_(props);
+  saveStats_({ id: 'TEST00', day: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'), v: 'test', os: 'pc', photos: '0', zones: '0', items: '0' });
+  Logger.log('통계 시트: ' + ss.getUrl());
 }
 
 // 편집기에서 한 번 실행하면 외부 연결(UrlFetchApp) 권한을 허용하는 창이 뜬다. 키 설정 확인용.
