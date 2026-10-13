@@ -758,9 +758,8 @@
         .stock-empty { padding: 28px 8px; text-align: center; color: var(--text3); font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
         .zl-chip .zl-qty { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--bg); color: var(--text2); font-size: 11px; font-weight: 800; }
         .zl-chip .zl-qty.is-low { background: var(--danger-soft, #fbeaea); color: var(--danger); }
-        /* 재고 버튼은 켠 사람만 보이니 눈에 띄게: 형광 테두리 + 글자 */
-        #stockFab, #stockFab:hover { width: auto; padding: 0 11px 0 9px; gap: 3px; border-radius: 18px; border: 2px solid #a8e600; background: #ecff9c; color: #1a1a18;
-            box-shadow: 0 0 0 3px rgba(168,230,0,0.35), 0 0 14px rgba(168,230,0,0.55); font-size: 13px; font-weight: 800; }
+        /* 재고 버튼은 켠 사람만 보이니 "재고" 글자를 붙여 알아보게 (색은 다른 버튼과 같게) */
+        #stockFab { width: auto; padding: 0 11px 0 9px; gap: 3px; border-radius: 18px; color: var(--accent-text); font-size: 13px; font-weight: 800; }
         #stockFab .ti { font-size: 16px; }
         body.editing #stockFab { display: none; }
         .print-name-line { flex: 1; min-width: 0; display: flex; }
@@ -4316,7 +4315,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.13.4';
+    const APP_VERSION = '베타 2026.10.13.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
