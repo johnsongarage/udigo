@@ -2062,7 +2062,43 @@
         <h3><i class="ti ti-settings"></i> 설정</h3>
         <button class="btn-ghost" onclick="closeSettingsModal()" aria-label="닫기"><i class="ti ti-x"></i></button>
     </div>
-    <!-- 설정은 묶음(1단계 제목) 안에 항목(2단계 이름)으로: 화면 · 매장 · 백업 · 도움 순서, 지우기는 맨 아래 따로 -->
+    <!-- 설정 순서: 자주 쓰고 중요한 것부터 — 백업 · 매장(재고 세기) · 도움 · 화면(한 번 정하면 끝) · 정보·기타(지우기는 맨 아래) -->
+    <section class="settings-sec">
+        <h4 class="settings-sec-title">백업</h4>
+        <div class="settings-list">
+            <!-- 백업은 한 줄: 보내기가 되는 폰이면 [카톡 등으로 보내기 / 이 폰에 저장]을 고르고, 아니면 바로 저장 (예전엔 '보내기'·'받기' 두 줄이 겹쳤다) -->
+            <button class="settings-row" onclick="closeSettingsModal(); startBackup()"><i class="ti ti-cloud-upload"></i> 백업하기 <small id="lastBackupText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
+            <button class="settings-row" onclick="document.getElementById('backupFileInput').click()"><i class="ti ti-upload"></i> 백업 파일로 복구</button>
+        </div>
+    </section>
+    <section class="settings-sec">
+        <h4 class="settings-sec-title">매장</h4>
+        <div class="settings-group">
+            <label class="settings-label" for="storeNameInput">매장 이름 <small style="font-weight: 400; color: var(--text3);">인쇄물 머리글·파일 이름에 들어가요</small></label>
+            <input type="text" id="storeNameInput" class="store-name-input" maxlength="20" placeholder="예: 다산점 창고" autocomplete="off" oninput="setStoreName(this.value)">
+        </div>
+        <div class="settings-list" style="margin: 10px 0 14px;">
+            <button class="settings-row" onclick="toggleStockMode()"><i class="ti ti-clipboard-list"></i> 재고 세기 · 발주 목록 <small id="stockRowText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
+        </div>
+        <div class="settings-group">
+            <label class="settings-label" for="industrySelect">업종 기본 품목</label>
+            <div class="settings-inline">
+                <select id="industrySelect"></select>
+                <button class="btn-base btn-secondary" onclick="applyIndustryTemplate()">적용</button>
+            </div>
+        </div>
+    </section>
+    <section class="settings-sec">
+        <h4 class="settings-sec-title">도움</h4>
+        <div class="settings-list">
+            <button id="installAppRow" class="settings-row" onclick="installApp()"><i class="ti ti-device-mobile"></i> 홈 화면에 앱으로 설치</button>
+            <button class="settings-row" onclick="closeSettingsModal(); document.getElementById('guideModal').style.setProperty('display', 'block', 'important');"><i class="ti ti-help-circle"></i> 사용법 다시 보기</button>
+            <button class="settings-row" onclick="openFeedbackForm()"><i class="ti ti-message-2"></i> 의견 보내기</button>
+            <button class="settings-row" onclick="shareApp()"><i class="ti ti-share"></i> <span data-app-name>창고여지도</span> 알려주기</button>
+            <button id="contactRow" class="settings-row" onclick="openContact()" hidden><i class="ti ti-headset"></i> 문의하기 <small id="contactText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
+            <a id="promoRow" class="settings-row promo-row" href="https://forms.gle/Yf3eGxW8N1i8fh6L8" target="_blank" rel="noopener" hidden><i class="ti ti-gift"></i> 무료 방문 세팅 <small style="margin-left: auto; color: var(--text3); font-weight: 400;">10/31까지 · 다산·구리</small></a>
+        </div>
+    </section>
     <section class="settings-sec">
         <h4 class="settings-sec-title">화면</h4>
         <div class="settings-group">
@@ -2096,46 +2132,15 @@
         </div>
     </section>
     <section class="settings-sec">
-        <h4 class="settings-sec-title">매장</h4>
-        <div class="settings-group">
-            <label class="settings-label" for="storeNameInput">매장 이름 <small style="font-weight: 400; color: var(--text3);">인쇄물 머리글·파일 이름에 들어가요</small></label>
-            <input type="text" id="storeNameInput" class="store-name-input" maxlength="20" placeholder="예: 다산점 창고" autocomplete="off" oninput="setStoreName(this.value)">
-        </div>
-        <div class="settings-group">
-            <label class="settings-label" for="industrySelect">업종 기본 품목</label>
-            <div class="settings-inline">
-                <select id="industrySelect"></select>
-                <button class="btn-base btn-secondary" onclick="applyIndustryTemplate()">적용</button>
-            </div>
-        </div>
-        <div class="settings-list" style="margin-top: 10px;">
-            <button class="settings-row" onclick="toggleStockMode()"><i class="ti ti-clipboard-list"></i> 재고 세기 · 발주 목록 <small id="stockRowText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
-        </div>
-    </section>
-    <section class="settings-sec">
-        <h4 class="settings-sec-title">데이터 · 백업</h4>
+        <h4 class="settings-sec-title">정보 · 기타</h4>
         <div class="settings-list">
-            <!-- 백업은 한 줄: 보내기가 되는 폰이면 [카톡 등으로 보내기 / 이 폰에 저장]을 고르고, 아니면 바로 저장 (예전엔 '보내기'·'받기' 두 줄이 겹쳤다) -->
-            <button class="settings-row" onclick="closeSettingsModal(); startBackup()"><i class="ti ti-cloud-upload"></i> 백업하기 <small id="lastBackupText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
-            <button class="settings-row" onclick="document.getElementById('backupFileInput').click()"><i class="ti ti-upload"></i> 백업 파일로 복구</button>
             <button class="settings-row" onclick="openDataInfo()"><i class="ti ti-shield-lock"></i> 내 데이터는 어디에 있나요?</button>
             <button class="settings-row" onclick="toggleStats()"><i class="ti ti-chart-bar"></i> 사용 통계 보내기 <small id="statsRowText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
         </div>
-    </section>
-    <section class="settings-sec">
-        <h4 class="settings-sec-title">도움 · 소식</h4>
-        <div class="settings-list">
-    <a id="promoRow" class="settings-row promo-row" href="https://forms.gle/Yf3eGxW8N1i8fh6L8" target="_blank" rel="noopener" hidden><i class="ti ti-gift"></i> 무료 방문 세팅 <small style="margin-left: auto; color: var(--text3); font-weight: 400;">10/31까지 · 다산·구리</small></a>
-            <button id="installAppRow" class="settings-row" onclick="installApp()"><i class="ti ti-device-mobile"></i> 홈 화면에 앱으로 설치</button>
-            <button class="settings-row" onclick="closeSettingsModal(); document.getElementById('guideModal').style.setProperty('display', 'block', 'important');"><i class="ti ti-help-circle"></i> 사용법 다시 보기</button>
-            <button class="settings-row" onclick="shareApp()"><i class="ti ti-share"></i> <span data-app-name>창고여지도</span> 알려주기</button>
-            <button class="settings-row" onclick="openFeedbackForm()"><i class="ti ti-message-2"></i> 의견 보내기</button>
-            <button id="contactRow" class="settings-row" onclick="openContact()" hidden><i class="ti ti-headset"></i> 문의하기 <small id="contactText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
+        <div class="settings-list settings-danger">
+        <button id="resetRow" class="settings-row is-danger" onclick="openResetAsk()"><i class="ti ti-trash"></i> 모든 데이터 지우기</button>
         </div>
     </section>
-    <div class="settings-list settings-danger">
-        <button id="resetRow" class="settings-row is-danger" onclick="openResetAsk()"><i class="ti ti-trash"></i> 모든 데이터 지우기</button>
-    </div>
     <p id="settingsFooter" class="settings-footer"></p>
     <input type="file" id="backupFileInput" style="display:none" onchange="importSystemData(this)">
 </div>
@@ -4315,7 +4320,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.13.5';
+    const APP_VERSION = '베타 2026.10.13.6';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
