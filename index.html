@@ -624,7 +624,6 @@
         body.photo-fs #printModal { z-index: 1102; } /* 크게 보기 위에서도 인쇄물 창이 보이게 */
         /* 크게 보기에서도 편집·되돌리기 버튼 모음과 편집 중 띠를 위에 띄운다 (확대해서 작은 칸을 정확히 그리게). 글자 크기 +/−는 숨김 */
         body.photo-fs .floating-remote { z-index: 1099; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
-        body.photo-fs .floating-remote .fab-font { display: none; }
         body.photo-fs .edit-bar { z-index: 1099; }
         body.photo-fs.editing .zoom-box.is-fs { top: var(--edit-bar-h, 60px); }
         body.photo-fs.editing .zoom-box.is-fs .fs-bar { padding-top: 8px; }
@@ -672,6 +671,11 @@
         .photo-menu button .ti { font-size: 18px; color: var(--text2); }
         .photo-menu button:hover, .photo-menu button:active { background: var(--accent-soft); }
         .photo-menu button.is-danger, .photo-menu button.is-danger .ti { color: var(--danger, #c44444); }
+        /* 사진 [⋯] 메뉴 안의 쪽지 글자 크기: 누르면 메뉴는 열린 채로 바로 바뀐다 (설정 > 화면의 "사진 위 글자 크기"와 같은 값) */
+        .photo-menu-font { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px 0 12px; font-size: 14px; font-weight: 600; color: var(--text); }
+        .photo-menu-font > .ti { font-size: 18px; color: var(--text2); }
+        .photo-menu-font > span:first-of-type { flex: 1; }
+        .photo-menu .font-pill button { min-height: 0; padding: 0 10px; gap: 0; border-radius: 0; }
         .font-pill { display: flex; align-items: center; height: 34px; border: 1px solid var(--ivory-border); border-radius: 17px; background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
         .font-pill button { height: 100%; padding: 0 9px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 800; color: var(--text); display: flex; align-items: center; cursor: pointer; }
         .font-pill button.is-big { font-size: 16px; }
@@ -1826,7 +1830,6 @@
 <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="addImage(this)">
 
 <div class="floating-remote" id="floatingRemote">
-    <span class="fab-font font-pill" role="group" aria-label="쪽지 글자 크기"><button type="button" onclick="changeFontSize(-2)" title="글자 작게" aria-label="글자 작게">가<sub>−</sub></button><span class="font-pill-sep" aria-hidden="true"></span><button type="button" class="is-big" onclick="changeFontSize(2)" title="글자 크게" aria-label="글자 크게">가<sup>+</sup></button></span>
     <button id="detailToggleBtn" onclick="toggleDetails()" class="fab-btn" title="말풍선 토글"><i class="ti ti-message-circle"></i></button>
     <button id="undoBtn" onclick="undo()" class="fab-btn" title="되돌리기" disabled><i class="ti ti-arrow-back-up"></i></button>
     <button id="printFab" onclick="openPrintPreview(fsPhoto ? fsPhoto.data.id : undefined)" class="fab-btn" title="인쇄물 보기 (종이·PDF)" aria-label="인쇄물 보기"><i class="ti ti-printer"></i></button>
@@ -1842,6 +1845,7 @@
     <button type="button" role="menuitem" data-act="ai"><i class="ti ti-sparkles"></i> AI로 구역 다시 찾기</button>
     <button type="button" role="menuitem" data-act="print"><i class="ti ti-printer"></i> 이 사진 인쇄물 보기</button>
     <button type="button" role="menuitem" data-act="rename"><i class="ti ti-pencil"></i> 사진 이름 바꾸기</button>
+    <div class="photo-menu-font" role="group" aria-label="쪽지 글자 크기"><i class="ti ti-typography"></i><span>쪽지 글자</span><span class="font-pill"><button type="button" data-font="-2" title="쪽지 글자 작게" aria-label="쪽지 글자 작게">가<sub>−</sub></button><span class="font-pill-sep" aria-hidden="true"></span><button type="button" class="is-big" data-font="2" title="쪽지 글자 크게" aria-label="쪽지 글자 크게">가<sup>+</sup></button></span></div>
     <button type="button" role="menuitem" data-act="delete" class="is-danger"><i class="ti ti-trash"></i> 사진 삭제</button>
 </div>
 
@@ -3145,6 +3149,8 @@
     }
     function closePhotoMenu() { const m = document.getElementById('photoMenu'); if (m) m.hidden = true; photoMenuId = null; }
     document.getElementById('photoMenu').addEventListener('click', (e) => {
+        const f = e.target.closest('button[data-font]'); // 쪽지 글자 크기: 메뉴를 닫지 않고 바로 바꾼다 (사진을 보면서 맞추게)
+        if (f) { changeFontSize(Number(f.dataset.font)); return; }
         const b = e.target.closest('button[data-act]'); if (!b) return;
         const id = photoMenuId; closePhotoMenu();
         if (b.dataset.act === 'ai') runAIAnalysis(id);
@@ -4310,7 +4316,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.13.3';
+    const APP_VERSION = '베타 2026.10.13.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
