@@ -683,7 +683,7 @@
         body.editing #printFab { display: none; }
         #undoBtn { background: var(--bg); color: var(--text3); border-color: var(--ivory-border); cursor: not-allowed; box-shadow: none; }
 
-        #modal, #guideModal, #editIntro, #photoTip, #dataInfo, #pendingAdd, #backupChoice, #resetAsk, #settingsModal, #printModal {
+        #modal, #guideModal, #editIntro, #photoTip, #iosInstall, #dataInfo, #pendingAdd, #backupChoice, #resetAsk, #settingsModal, #printModal {
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 92%; max-width: 480px; max-height: 85vh; background: var(--card); padding: 24px;
             border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
@@ -691,7 +691,9 @@
         }
         #settingsModal { z-index: 1020; max-width: 420px; }
         /* 구역 고치기 첫 안내: 편집 띠(1068)·완료 버튼 위에 뜨게 */
-        #editIntro, #photoTip { z-index: 10001; max-width: 420px; }
+        #editIntro, #photoTip, #iosInstall { z-index: 10001; max-width: 420px; }
+        #iosInstallBackdrop { display: none; position: fixed; inset: 0; background: rgba(26,26,24,0.45); z-index: 10000; }
+        .ios-install-skip { display: block; width: 100%; margin-top: 10px; padding: 8px; border: 0; background: none; font: inherit; font-size: 13px; color: var(--text3); text-decoration: underline; cursor: pointer; }
         #dataInfo { z-index: 10001; max-width: 460px; }
         @media (max-width: 600px) { #dataInfo { width: calc(100% - 24px); padding: 20px 16px; } }
         #pendingAdd, #backupChoice, #resetAsk { z-index: 10001; max-width: 360px; }
@@ -1581,6 +1583,38 @@
     }
 </script>
 
+<div id="iosInstallBackdrop" onclick="closeIosInstall()"></div>
+<div id="iosInstall" role="dialog" aria-modal="true" aria-label="아이폰 홈 화면에 추가" style="line-height: 1.6;">
+    <h2 style="text-align: center; color: var(--accent-text); margin-bottom: 16px; font-size: 1.2em; word-break: keep-all;">아이폰은 먼저 홈 화면에 추가하세요</h2>
+    <div style="background: var(--bg); border: 1px solid var(--border); padding: 16px; border-radius: 8px; margin-bottom: 14px;">
+        <ol class="guide-steps">
+            <li><i class="ti ti-share"></i><div><b>사파리 아래쪽 공유 버튼</b><span>네모에 화살표(□↑)가 있는 버튼이에요.</span></div></li>
+            <li><i class="ti ti-square-plus"></i><div><b>'홈 화면에 추가' → [추가]</b><span>안 보이면 메뉴를 위로 밀어 보세요.</span></div></li>
+            <li><i class="ti ti-device-mobile"></i><div><b>홈 화면에 생긴 아이콘으로 열어서 시작</b><span>사파리에서 넣은 사진·물건은 홈 화면 앱으로 <b>넘어가지 않아요.</b> 사파리로만 쓰면 오래 안 열 때 아이폰이 지울 수도 있어요.</span></div></li>
+        </ol>
+    </div>
+    <button type="button" class="btn-base btn-primary" style="width: 100%;" onclick="closeIosInstall()">알겠어요, 추가하러 갈게요</button>
+    <button type="button" class="ios-install-skip" onclick="skipIosInstall()">그냥 사파리에서 쓰기</button>
+</div>
+<script>
+    // 📲 아이폰(사파리): 사파리와 홈 화면 앱은 저장 공간이 따로라, 데이터를 넣기 "전에" 설치하게 한다 (첫 사진 직전·설치 띠의 [방법])
+    let iosInstallThenPick = false;
+    function openIosInstall(thenPick) {
+        iosInstallThenPick = !!thenPick;
+        document.getElementById('iosInstallBackdrop').style.display = 'block';
+        document.getElementById('iosInstall').style.setProperty('display', 'block', 'important');
+    }
+    function closeIosInstall() {
+        document.getElementById('iosInstallBackdrop').style.display = 'none';
+        document.getElementById('iosInstall').style.display = 'none';
+    }
+    function skipIosInstall() {
+        try { localStorage.setItem('iosInstallSkip', '1'); } catch (e) {}
+        closeIosInstall();
+        if (iosInstallThenPick) pickPhoto();
+    }
+</script>
+
 <div id="photoTipBackdrop" onclick="closePhotoTip()"></div>
 <div id="photoTip" role="dialog" aria-modal="true" aria-label="사진 찍는 방법" style="line-height: 1.6;">
     <h2 style="text-align: center; color: var(--accent-text); margin-bottom: 16px; font-size: 1.25em;">사진은 이렇게 찍어주세요</h2>
@@ -1599,6 +1633,8 @@
         let seen = false;
         try { seen = !!localStorage.getItem('photoTipSeen'); } catch (e) {}
         const hasPhoto = imageList.some(d => d.id !== 'dummy_root');
+        let iosSkip = false; try { iosSkip = !!localStorage.getItem('iosInstallSkip'); } catch (e) {}
+        if (!hasPhoto && !iosSkip && isIOS() && !isInstalledApp() && !isInAppBrowser()) { openIosInstall(true); return; }
         if (seen || hasPhoto) { document.getElementById('fileInput').click(); return; }
         document.getElementById('photoTipBackdrop').style.display = 'block';
         document.getElementById('photoTip').style.setProperty('display', 'block', 'important');
@@ -1687,6 +1723,14 @@
         <span class="install-banner-actions">
             <a class="btn-xs is-accent" href="https://forms.gle/Yf3eGxW8N1i8fh6L8" target="_blank" rel="noopener" onclick="dismissPromoBanner()">신청</a>
             <button type="button" class="btn-xs is-icon" onclick="dismissPromoBanner()" title="닫기" aria-label="닫기"><i class="ti ti-x"></i></button>
+        </span>
+    </div>
+    <!-- 카톡 등 앱 안 브라우저로 열렸을 때: 거기 넣은 데이터는 사파리·크롬·설치한 앱에서 안 보이고, 아이폰은 설치도 안 된다 -->
+    <div id="inappBanner" class="sample-banner install-banner" style="display: none;">
+        <span id="inappBannerText"><i class="ti ti-alert-triangle"></i> 카톡 안 브라우저예요</span>
+        <span class="install-banner-actions">
+            <button type="button" class="btn-xs is-accent" onclick="openInBrowser()" id="inappBannerBtn">브라우저로 열기</button>
+            <button type="button" class="btn-xs is-icon" onclick="hideInappBanner()" title="닫기" aria-label="닫기"><i class="ti ti-x"></i></button>
         </span>
     </div>
     <div id="installBanner" class="sample-banner install-banner" style="display: none;">
@@ -3200,7 +3244,7 @@
                 const isFirstPhoto = !imageList.some(d => d.id !== 'dummy_root');
                 finalImg.onload = () => {
                     data.img = finalImg; createNewCanvasElement(data); showPhoto(data.id, true); render(data); saveData();
-                    if (isFirstPhoto) showToast('다음: 사진 가운데 [AI로 구역 찾기]를 눌러 보세요', 6000);
+                    if (isFirstPhoto) { showToast('다음: 사진 가운데 [AI로 구역 찾기]를 눌러 보세요', 6000); setTimeout(maybeShowInstallBanner, 800); }
                 };
             };
             img.src = e.target.result;
@@ -4257,7 +4301,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.13';
+    const APP_VERSION = '베타 2026.10.13.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -4464,12 +4508,12 @@
     let deferredInstallPrompt = null;
     const isInstalledApp = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const IOS_INSTALL_GUIDE = "공유 버튼 → '홈 화면에 추가'로 앱처럼 설치돼요";
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; maybeShowInstallBanner(); requestAnimationFrame(fitBannerTexts); });
     window.addEventListener('appinstalled', () => { deferredInstallPrompt = null; hideInstallBanner(); });
-    // 처음 쓰는 사람에게는 띄우지 않고, 손에 익었을 때 추천한다: 서로 다른 날 3번 이상 열었거나, 물건 위치를 5번 이상 찾았을 때.
-    // (그 전에도 설정 > "홈 화면에 앱으로 설치"로 언제든 설치할 수 있다)
-    const USAGE_KEY = 'usageStats', INSTALL_AFTER_DAYS = 3, INSTALL_AFTER_FINDS = 5;
+    // 설치 띠: 아이폰은 바로(사파리와 홈 화면 앱은 저장 공간이 따로라 늦게 설치하면 앱이 비어 있다), 안드로이드는 첫 사진을 저장한 뒤 바로(설치 창이 한 번에 뜨고 데이터는 그대로 이어진다)
+    // (예전엔 서로 다른 날 3번·찾기 5번 뒤에 띄웠는데, 아이폰에선 그때 설치하면 사파리에 넣은 데이터가 앱으로 안 넘어갔다)
+    // (언제든 설정 > "홈 화면에 앱으로 설치"로도 설치할 수 있다)
+    const USAGE_KEY = 'usageStats';
     function readUsage() { try { return JSON.parse(safeStorage.getItem(USAGE_KEY)) || { days: [], finds: 0 }; } catch (e) { return { days: [], finds: 0 }; } }
     function writeUsage(u) { try { safeStorage.setItem(USAGE_KEY, JSON.stringify(u)); } catch (e) {} }
     function isRealUse() { return !isSamplePreview && safeStorage.getItem('isSampleData') !== '1' && hasSavedData(); }
@@ -4542,16 +4586,48 @@
         if (off) { const st = readStats(); st.days = []; writeStats(st); } // 끄면 아직 안 보낸 날도 버린다
         else { loadVisitStats(); markUsedToday(); sendDailyStats(); }
     }
-    function isFamiliarUser() { const u = readUsage(); return u.days.length >= INSTALL_AFTER_DAYS || (u.finds || 0) >= INSTALL_AFTER_FINDS; }
     // 위쪽 안내 띠는 한 번에 하나만: 예시 띠가 떠 있으면 설치 안내는 다음에
-    function anyBannerShown() { return ['deleteSampleBtn', 'samplePreviewBanner', 'backupBanner', 'promoBanner', 'installBanner'].some(id => { const e = document.getElementById(id); return e && e.style.display === 'flex'; }); }
+    function anyBannerShown() { return ['inappBanner', 'deleteSampleBtn', 'samplePreviewBanner', 'backupBanner', 'promoBanner', 'installBanner'].some(id => { const e = document.getElementById(id); return e && e.style.display === 'flex'; }); }
     function hideSampleBanner() { document.getElementById('deleteSampleBtn').style.display = 'none'; try { sessionStorage.setItem('sampleBannerHidden', '1'); } catch (e) {} }
+    const INSTALL_BANNER_TEXT = '<i class="ti ti-device-mobile"></i> 홈 화면에 추가하면 앱처럼 바로 열려요';
     function maybeShowInstallBanner() {
-        if (isInstalledApp() || !isRealUse() || !isFamiliarUser() || anyBannerShown()) return;
-        if (!deferredInstallPrompt && !isIOS()) return;
+        if (isInstalledApp() || isInAppBrowser() || isSamplePreview || anyBannerShown()) return;
         const until = parseInt(safeStorage.getItem('installBannerHiddenUntil') || '0', 10);
         if (until && Date.now() < until) return;
-        document.getElementById('installBanner').style.display = 'flex';
+        const banner = document.getElementById('installBanner'), text = document.getElementById('installBannerText'), btn = banner.querySelector('.is-accent');
+        if (isIOS()) {
+            if (isRealUse()) { // 이미 사파리에 데이터가 있다 → 설치한 앱은 비어 있으니 백업해서 옮기게
+                text.innerHTML = '<i class="ti ti-device-mobile"></i> 아이폰은 홈 화면 앱으로 써야 안전해요. 설치한 앱은 비어 있으니 <b>먼저 백업</b> → 앱에서 복구';
+                btn.textContent = '백업'; btn.onclick = () => startBackup();
+            } else {
+                text.innerHTML = '<i class="ti ti-device-mobile"></i> 아이폰은 <b>홈 화면에 추가하고</b> 시작하세요';
+                btn.textContent = '방법'; btn.onclick = () => openIosInstall();
+            }
+        } else {
+            if (!deferredInstallPrompt || !isRealUse()) return; // 안드로이드: 첫 사진을 저장한 뒤, 설치 창을 띄울 수 있을 때만
+            text.innerHTML = INSTALL_BANNER_TEXT;
+            btn.textContent = '설치'; btn.onclick = () => installApp();
+        }
+        banner.style.display = 'flex';
+        requestAnimationFrame(fitBannerTexts);
+    }
+    // 🔗 카톡 등 앱 안 브라우저: 거기 저장한 데이터는 사파리·크롬·설치한 앱과 따로라 사라지기 쉽고, 아이폰은 설치 메뉴도 없다 → 브라우저로 열게 한다
+    const isInAppBrowser = () => /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|FB_IAB|\bLine\/|DaumApps|everytimeApp|; wv\)/i.test(navigator.userAgent);
+    function maybeShowInappBanner() {
+        if (!isInAppBrowser() || anyBannerShown()) return;
+        try { if (sessionStorage.getItem('inappBannerHidden')) return; } catch (e) {}
+        const kakao = /KAKAOTALK/i.test(navigator.userAgent);
+        document.getElementById('inappBannerText').innerHTML = `<i class="ti ti-alert-triangle"></i> ${kakao ? '카톡' : '앱'} 안 브라우저예요. 여기 넣은 사진은 사라지기 쉬워요 — <b>${isIOS() ? '사파리로' : '크롬으로'} 열어 주세요</b>`;
+        document.getElementById('inappBanner').style.display = 'flex';
+        requestAnimationFrame(fitBannerTexts);
+    }
+    function hideInappBanner() { document.getElementById('inappBanner').style.display = 'none'; try { sessionStorage.setItem('inappBannerHidden', '1'); } catch (e) {} }
+    async function openInBrowser() {
+        const url = location.href.split('#')[0], ua = navigator.userAgent;
+        if (/KAKAOTALK/i.test(ua)) { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); return; } // 카톡: 기본 브라우저로 열기
+        if (/android/i.test(ua)) { location.href = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end'; return; }
+        try { await navigator.clipboard.writeText(url); showToast(`주소를 복사했어요. ${isIOS() ? '사파리' : '브라우저'}를 열고 붙여 넣으세요`, 4000); }
+        catch (e) { prompt(`이 주소를 ${isIOS() ? '사파리' : '브라우저'}에 붙여 넣으세요`, url); }
     }
     // 💾 백업 안내 띠: 물건까지 적어 둔 뒤에만, 아직 백업이 없거나 마지막 백업 뒤 14일이 지나고 그사이 바뀐 게 있을 때
     const BACKUP_REMIND_MS = 14 * 24 * 60 * 60 * 1000;
@@ -4591,15 +4667,7 @@
             if (outcome === 'accepted') hideInstallBanner();
             return;
         }
-        if (isIOS()) {
-            const text = document.getElementById('installBannerText');
-            if (text && document.getElementById('installBanner').style.display !== 'none') {
-                text.textContent = IOS_INSTALL_GUIDE;
-                document.querySelector('#installBanner .is-accent').style.display = 'none';
-                return;
-            }
-            alert(IOS_INSTALL_GUIDE); return;
-        }
+        if (isIOS()) { openIosInstall(); return; }
         alert("브라우저 메뉴(⋮)에서 '홈 화면에 추가' 또는 '앱 설치'를 눌러주세요.");
     }
 
@@ -6401,12 +6469,21 @@
             recordUsageDay();
             markUsedToday(); setTimeout(sendDailyStats, 3000); // 화면을 다 그린 뒤에 보낸다
             // 띠는 한 번에 하나: 기간 한정 이벤트(한 번 닫으면 끝) → 백업 안내(다음에 다시 뜸) → 설치 안내
+            maybeShowInappBanner();
+            if (isIOS()) maybeShowInstallBanner(); // 아이폰은 사파리 데이터를 잃기 전에 옮기는 게 먼저
             maybeShowPromoBanner();
             maybeShowBackupBanner();
             requestAnimationFrame(fitBannerTexts);
             maybeShowInstallBanner();
         }
         else {
+            maybeShowInappBanner();
+            maybeShowInstallBanner(); // 아이폰 사파리: 데이터를 넣기 전에 설치하게
+            // 아이폰 홈 화면 앱을 처음 열었는데 비어 있으면: 사파리에서 쓰던 데이터는 백업 → 복구로 옮긴다고 한 번 알려 준다
+            if (isIOS() && isInstalledApp() && !safeStorage.getItem('iosRestoreHint')) {
+                safeStorage.setItem('iosRestoreHint', '1');
+                setTimeout(() => showToast('사파리에서 쓰던 게 있으면: 사파리에서 백업 → 여기 설정 > 백업 파일로 복구', 7000), 1200);
+            }
             if (sampleDataBtn && SAMPLE_DEMO_DATA.savedSystemData.length) sampleDataBtn.style.display = 'block';
             showWelcome(true);
             const sample = {
