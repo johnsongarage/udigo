@@ -718,6 +718,36 @@
         .print-zoom-btn { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 0; border-radius: 16px; background: rgba(26,26,24,0.72); color: #fff; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
         .print-page-badge { position: absolute; bottom: 8px; right: 8px; padding: 3px 9px; border-radius: 12px; background: rgba(26,26,24,0.72); color: #fff; font-size: 12px; font-weight: 700; pointer-events: none; }
         #printModal .settings-head { margin-bottom: 12px; gap: 10px; }
+        /* 📦 재고 세기: 설정에서 켠 사람만. 선반(구역) 순서대로 돌며 − 수량 + 로 세고, 기준보다 모자란 것을 발주 목록으로 */
+        #stockBackdrop { display: none; position: fixed; inset: 0; background: rgba(26,26,24,0.45); z-index: 1089; }
+        #stockModal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 92%; max-width: 520px; max-height: 85vh; max-height: 88dvh;
+            background: var(--card); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-lg); z-index: 1090; box-sizing: border-box; flex-direction: column; overflow: hidden; }
+        @media (max-width: 600px) { #stockModal { width: calc(100% - 16px); padding: 16px 12px; } }
+        #stockModal > * { flex: none; }
+        #stockModal .settings-head { margin-bottom: 10px; }
+        .stock-sub { margin: -4px 0 10px; font-size: 12.5px; color: var(--text3); word-break: keep-all; }
+        #stockModal .stock-list { flex: 1 1 auto; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; margin-top: 10px; border-top: 1px solid var(--border); }
+        .stock-photo { position: sticky; top: 0; z-index: 1; background: var(--card); padding: 10px 2px 6px; font-size: 13px; font-weight: 700; color: var(--accent-text); border-bottom: 1px solid var(--border); }
+        .stock-zone { padding: 8px 2px 2px; font-size: 12.5px; font-weight: 700; color: var(--text2); }
+        .stock-zone b { display: inline-flex; min-width: 22px; justify-content: center; margin-right: 6px; padding: 1px 6px; border-radius: 10px; background: var(--charcoal, #1a1a18); color: var(--ivory-text, #fff); font-size: 11.5px; }
+        .stock-row { display: flex; align-items: center; gap: 6px; padding: 6px 2px; border-bottom: 1px dashed var(--border); }
+        .stock-name { flex: 1; min-width: 0; font-size: 14.5px; color: var(--text); overflow-wrap: anywhere; word-break: keep-all; }
+        .stock-row.is-low .stock-name { color: var(--danger); font-weight: 700; }
+        .stock-ctl { display: flex; align-items: center; gap: 2px; flex: none; }
+        .stock-ctl button { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 18px; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; }
+        .stock-ctl input, .stock-par input { width: 46px; height: 36px; padding: 0 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font: inherit; font-size: 15px; font-weight: 700; text-align: center; box-sizing: border-box; }
+        .stock-par { display: flex; flex-direction: column; align-items: center; flex: none; font-size: 10.5px; color: var(--text3); line-height: 1.1; }
+        .stock-par input { width: 44px; height: 30px; font-size: 13px; font-weight: 400; margin-top: 2px; }
+        .stock-order-row { display: flex; align-items: baseline; gap: 8px; padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 14.5px; }
+        .stock-order-row .n { flex: none; min-width: 44px; text-align: right; font-weight: 800; color: var(--danger); }
+        .stock-order-row .t { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
+        .stock-order-row small { display: block; font-size: 12px; color: var(--text3); }
+        .stock-empty { padding: 28px 8px; text-align: center; color: var(--text3); font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
+        .zl-chip .zl-qty { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--bg); color: var(--text2); font-size: 11px; font-weight: 800; }
+        .zl-chip .zl-qty.is-low { background: var(--danger-soft, #fbeaea); color: var(--danger); }
+        #stockFab { color: var(--accent-text); }
+        #stockFab .ti { font-size: 17px; }
+        body.editing #stockFab { display: none; }
         .print-name-line { flex: 1; min-width: 0; display: flex; }
         .print-name-line input[type="text"].store-name-input { min-height: 36px; padding: 4px 10px; }
         .print-name-btn { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 0; border: 0; background: none; font: inherit; font-size: 13px; color: var(--text2); cursor: pointer; text-align: left; }
@@ -1747,6 +1777,7 @@
     <button id="detailToggleBtn" onclick="toggleDetails()" class="fab-btn" title="말풍선 토글"><i class="ti ti-message-circle"></i></button>
     <button id="undoBtn" onclick="undo()" class="fab-btn" title="되돌리기" disabled><i class="ti ti-arrow-back-up"></i></button>
     <button id="printFab" onclick="openPrintPreview(fsPhoto ? fsPhoto.data.id : undefined)" class="fab-btn" title="인쇄물 보기 (종이·PDF)" aria-label="인쇄물 보기"><i class="ti ti-printer"></i></button>
+    <button id="stockFab" onclick="openStock()" class="fab-btn" title="재고 세기·발주 목록" aria-label="재고 세기" hidden><i class="ti ti-clipboard-list"></i></button>
     <button id="mainModeBtn" onclick="toggleEditMode()" title="구역·물건 고치기" aria-label="구역·물건 고치기">
         <i id="modeIcon" class="ti ti-pencil" style="font-size: 14px;"></i>
         <span id="modeText" style="margin-left: 4px;">구역 고치기</span>
@@ -1871,6 +1902,20 @@
     </div>
 </div>
 
+<div id="stockBackdrop" onclick="closeStock()"></div>
+<div id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockTitle">
+    <div class="settings-head">
+        <h3 id="stockTitle"><i class="ti ti-clipboard-list"></i> 재고</h3>
+        <button class="btn-ghost" onclick="closeStock()" aria-label="닫기"><i class="ti ti-x"></i></button>
+    </div>
+    <p class="stock-sub" id="stockSub"></p>
+    <div class="seg seg-strong" role="tablist" aria-label="재고 화면">
+        <button type="button" role="tab" data-tab="count" onclick="setStockTab('count')">세기</button>
+        <button type="button" role="tab" data-tab="order" onclick="setStockTab('order')" id="stockOrderTab">발주 목록</button>
+    </div>
+    <div id="stockList" class="stock-list"></div>
+    <div class="print-actions" id="stockActions"></div>
+</div>
 <div id="printBackdrop" onclick="closePrintPreview()"></div>
 <div id="printModal" role="dialog" aria-modal="true" aria-labelledby="printTitle">
     <div class="settings-head">
@@ -2006,6 +2051,9 @@
                 <select id="industrySelect"></select>
                 <button class="btn-base btn-secondary" onclick="applyIndustryTemplate()">적용</button>
             </div>
+        </div>
+        <div class="settings-list" style="margin-top: 10px;">
+            <button class="settings-row" onclick="toggleStockMode()"><i class="ti ti-clipboard-list"></i> 재고 세기 · 발주 목록 <small id="stockRowText" style="margin-left: auto; color: var(--text3); font-weight: 400;"></small></button>
         </div>
     </section>
     <section class="settings-sec">
@@ -2885,7 +2933,7 @@
         document.getElementById('installAppRow').hidden = isInstalledApp();
         syncLastBackupText();
         document.getElementById('promoRow').hidden = !setupPromoOn();
-        syncSettingsFooter(); syncStatsRow(); syncFontSeg(); document.getElementById('storeNameInput').value = storeName();
+        syncSettingsFooter(); syncStatsRow(); syncStockRow(); syncFontSeg(); document.getElementById('storeNameInput').value = storeName();
         document.getElementById('resetRow').parentElement.hidden = isSamplePreview || !hasSavedData(); // 지울 게 없으면 묶음째 숨김
         document.getElementById('contactRow').hidden = !CONTACT.url;
         document.getElementById('contactText').textContent = CONTACT.label || '';
@@ -3830,7 +3878,7 @@
                     const memoOf = (it) => (it.comment || '').trim() ? `<small>${escapeHtml(it.comment.trim())}</small>` : '';
                     const chip = (it) => isEditMode
                         ? `<button type="button" class="zl-chip is-movable${it.comment ? ' has-memo' : ''}" data-name="${escapeHtml(it.name)}" onclick="event.stopPropagation(); startMoveItem('${data.id}', ${i}, this.dataset.name)" title="눌러서 다른 구역으로 옮기기">${escapeHtml(it.name)}${memoOf(it)}<i class="ti ti-arrows-move"></i></button>`
-                        : `<span class="zl-chip${it.comment ? ' has-memo' : ''}">${escapeHtml(it.name)}${memoOf(it)}</span>`;
+                        : `<span class="zl-chip${it.comment ? ' has-memo' : ''}">${escapeHtml(it.name)}${stockBadge(it)}${memoOf(it)}</span>`;
                     const go = isEditMode ? `editZone('${data.id}', ${i})` : `selectZone('${data.id}', ${i})`;
                     return `<div role="button" tabindex="0" class="zone-item zl-row ${isEditMode ? 'is-edit' : ''} ${z === activeZone ? 'active' : ''}" onclick="${go}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ${go}; }" aria-label="${escapeHtml(z.name || '이름 없는 구역')} ${isEditMode ? '고치기' : '사진에서 보기'}">
                         <span class="zl-num">${i + 1}</span>
@@ -3860,7 +3908,7 @@
                     </div>
                     ${z.items.length ? `<div class="zl-items">${z.items.map(it => isEditMode
                         ? `<button type="button" class="zl-chip is-movable" data-name="${escapeHtml(it.name)}" onclick="startMoveItem('${data.id}', ${i}, this.dataset.name)" title="눌러서 다른 구역으로 옮기기">${escapeHtml(it.name)}<i class="ti ti-arrows-move"></i></button>`
-                        : `<span class="zl-chip">${escapeHtml(it.name)}${it.comment ? `<small>${escapeHtml(it.comment)}</small>` : ''}</span>`).join('')}</div>`
+                        : `<span class="zl-chip">${escapeHtml(it.name)}${stockBadge(it)}${it.comment ? `<small>${escapeHtml(it.comment)}</small>` : ''}</span>`).join('')}</div>`
                       : `<div class="zl-empty">비어 있음</div>`}
                 </div>`).join('')}</div>`;
         }
@@ -3931,7 +3979,8 @@
     function commitZoneModal(confirmed) {
         if (!activeZone || !activeData || !activeData.zones.includes(activeZone) || document.getElementById('modal').style.display !== 'flex') return;
         const name = document.getElementById('zoneNameInput').value;
-        const items = [...document.querySelectorAll('#modal .zm-body .cb:checked')].map(cb => ({ name: cb.value, comment: cb.parentElement.nextElementSibling.value || "" }));
+        // 이름·메모만 다시 만들고, 원래 물건에 있던 다른 값(재고 수량·기준 등)은 그대로 둔다
+        const items = [...document.querySelectorAll('#modal .zm-body .cb:checked')].map(cb => ({ ...(activeZone.items.find(i => i.name === cb.value) || {}), name: cb.value, comment: cb.parentElement.nextElementSibling.value || "" }));
         const changed = name !== activeZone.name || JSON.stringify(items) !== JSON.stringify(activeZone.items.map(i => ({ name: i.name, comment: i.comment || "" })));
         if (!changed && !confirmed) return;
         if (changed) saveHistory();
@@ -4208,7 +4257,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.12.4';
+    const APP_VERSION = '베타 2026.10.13';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5043,11 +5092,12 @@
     function moveItemBetweenZones(fromZone, toData, toZone, itemName) {
         saveHistory();
         const idx = fromZone.items.findIndex(i => i.name === itemName);
-        const memo = idx >= 0 ? (fromZone.items[idx].comment || '') : '';
+        const moved = idx >= 0 ? fromZone.items[idx] : { name: itemName, comment: '' };
+        const memo = moved.comment || '';
         const hadMemo = !!memo.trim();
         if (idx >= 0) fromZone.items.splice(idx, 1);
-        // 메모는 사람이 적은 정보라 지우지 않고 같이 옮긴다 (세부 위치 메모라면 새 구역에 맞게 고치도록 토스트로 알린다)
-        if (!toZone.items.some(i => i.name === itemName)) toZone.items.push({ name: itemName, comment: memo });
+        // 메모·재고 수량은 사람이 적은 정보라 지우지 않고 같이 옮긴다 (세부 위치 메모라면 새 구역에 맞게 고치도록 토스트로 알린다)
+        if (!toZone.items.some(i => i.name === itemName)) toZone.items.push({ ...moved, name: itemName, comment: memo });
         markZoneChecked(fromZone); markZoneChecked(toZone);
         refreshAfterDataChange();
         selectZone(toData.id, toData.zones.indexOf(toZone));
@@ -6158,8 +6208,139 @@
 
     // 초기 실행 로직 (읽기 전용 상태로 시작)
     // 앱 시작: 외부 파일(아이콘 글꼴 등)을 다 받을 때까지 기다리는 window.onload 대신 HTML을 다 읽으면 바로 (사진은 이미 폰 안에 있다)
+    // ────────────────────────────────────────────────────────────
+    // 📦 재고 세기 · 발주 목록 (설정 > 매장 > [재고 세기]로 켠 사람만)
+    //   실시간 추적이 아니라 "주기적으로 세고 → 기준보다 모자란 만큼 발주". 선반(구역) 순서대로 돌며 − 수량 + 로 센다
+    //   값은 물건마다 qty(지금 수량)·par(기준 수량: 이만큼은 있어야 함)로 사진 데이터 안에 같이 저장된다 (백업에도 들어감, 서버 없음)
+    //   발주 목록 = 기준이 있는 물건 중 지금 수량 < 기준 → 모자란 만큼. 이름이 같으면 여러 구역 것을 합친다
+    // ────────────────────────────────────────────────────────────
+    const STOCK_KEY = 'stockMode', STOCK_COUNTED_KEY = 'stockCountedAt';
+    let stockTab = 'count', stockSaveTimer = 0;
+    function stockOn() { return safeStorage.getItem(STOCK_KEY) === '1'; }
+    const isNum = (v) => typeof v === 'number' && isFinite(v);
+    function stockBadge(it) {
+        if (!stockOn() || !isNum(it.qty)) return '';
+        return `<b class="zl-qty${isNum(it.par) && it.qty < it.par ? ' is-low' : ''}">${it.qty}</b>`;
+    }
+    function syncStockRow() {
+        const el = document.getElementById('stockRowText'); if (el) el.textContent = stockOn() ? '켜짐' : '꺼짐';
+        const fab = document.getElementById('stockFab'); if (fab) fab.hidden = !stockOn();
+    }
+    function toggleStockMode() {
+        const on = !stockOn();
+        if (on) safeStorage.setItem(STOCK_KEY, '1'); else safeStorage.removeItem(STOCK_KEY);
+        syncStockRow(); imageList.forEach(d => render(d));
+        showToast(on ? '재고 세기를 켰어요. 아래 버튼 줄의 [재고]로 세요' : '재고 세기를 껐어요. 적어 둔 수량은 그대로 있어요', 3000);
+    }
+    const stockPhotos = () => imageList.filter(d => d.id !== 'dummy_root');
+    function stockCode(pi, zi, multi) { return multi ? `${photoLetter(pi)}-${zi + 1}` : String(zi + 1); }
+    function openStock(tab) {
+        if (!stockPhotos().some(d => d.zones.some(z => z.items.length))) { alert('먼저 구역에 물건을 적어 주세요.'); return; }
+        stockTab = tab || 'count';
+        renderStock();
+        document.getElementById('stockBackdrop').style.display = 'block';
+        document.getElementById('stockModal').style.display = 'flex';
+        lockPageScroll();
+    }
+    function closeStock() {
+        if (document.getElementById('stockModal').style.display !== 'flex') return;
+        flushStockSave();
+        document.getElementById('stockModal').style.display = 'none';
+        document.getElementById('stockBackdrop').style.display = 'none';
+        unlockPageScroll();
+        imageList.forEach(d => render(d)); // 칩의 수량 숫자 새로
+    }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStock(); });
+    function setStockTab(t) { flushStockSave(); stockTab = t; renderStock(); }
+    // 누를 때마다 전체(사진 포함)를 저장하면 무거우니 잠깐 모았다가 한 번에
+    function queueStockSave() { clearTimeout(stockSaveTimer); stockSaveTimer = setTimeout(() => { stockSaveTimer = 0; saveData(); }, 700); }
+    function flushStockSave() { if (stockSaveTimer) { clearTimeout(stockSaveTimer); stockSaveTimer = 0; saveData(); } }
+    function stockOrderLines() {
+        const photos = stockPhotos(), multi = photos.length > 1, map = new Map();
+        let uncounted = 0;
+        photos.forEach((d, pi) => d.zones.forEach((z, zi) => z.items.forEach(it => {
+            if (!isNum(it.par)) return;
+            if (!isNum(it.qty)) { uncounted++; return; }
+            const need = it.par - it.qty; if (need <= 0) return;
+            const o = map.get(it.name) || { name: it.name, need: 0, qty: 0, par: 0, where: [] };
+            o.need += need; o.qty += it.qty; o.par += it.par; o.where.push(stockCode(pi, zi, multi) + (z.name ? ` ${z.name}` : ''));
+            map.set(it.name, o);
+        })));
+        return { lines: [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko')), uncounted };
+    }
+    function renderStock() {
+        const photos = stockPhotos(), multi = photos.length > 1, list = document.getElementById('stockList');
+        const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
+        const { lines, uncounted } = stockOrderLines();
+        document.querySelectorAll('#stockModal [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === stockTab)));
+        document.getElementById('stockOrderTab').textContent = lines.length ? `발주 목록 (${lines.length})` : '발주 목록';
+        document.getElementById('stockSub').textContent = stockTab === 'count'
+            ? `선반 순서대로 세요. 기준(이만큼은 있어야 함)을 적어 두면 모자란 것이 발주 목록에 모여요.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`
+            : '기준보다 모자란 것만 모았어요. 보내기로 카톡·문자에 붙여 넣으세요.';
+        const actions = document.getElementById('stockActions');
+        if (stockTab === 'count') {
+            list.innerHTML = photos.map((d, pi) => {
+                const zones = d.zones.map((z, zi) => z.items.length ? `<div class="stock-zone"><b>${stockCode(pi, zi, multi)}</b>${escapeHtml(z.name || '이름 없는 구역')}</div>` +
+                    z.items.map((it, ii) => {
+                        const low = isNum(it.qty) && isNum(it.par) && it.qty < it.par;
+                        return `<div class="stock-row${low ? ' is-low' : ''}" data-at="${pi}.${zi}.${ii}">
+                            <span class="stock-name">${escapeHtml(it.name)}</span>
+                            <span class="stock-ctl"><button type="button" data-act="dec" aria-label="${escapeHtml(it.name)} 하나 빼기">−</button><input type="number" inputmode="numeric" min="0" data-f="qty" value="${isNum(it.qty) ? it.qty : ''}" placeholder="?" aria-label="${escapeHtml(it.name)} 지금 수량"><button type="button" data-act="inc" aria-label="${escapeHtml(it.name)} 하나 더하기">+</button></span>
+                            <label class="stock-par">기준<input type="number" inputmode="numeric" min="0" data-f="par" value="${isNum(it.par) ? it.par : ''}" placeholder="–" aria-label="${escapeHtml(it.name)} 기준 수량"></label>
+                        </div>`;
+                    }).join('') : '').join('');
+                return zones ? `<div class="stock-photo">${multi ? `${photoLetter(pi)} · ` : ''}${escapeHtml(d.title || '')}</div>${zones}` : '';
+            }).join('') || '<div class="stock-empty">구역에 적은 물건이 없어요.</div>';
+            actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="closeStock()">닫기</button>
+                <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="finishStockCount()"><i class="ti ti-check"></i> 다 셌어요</button>`;
+        } else {
+            list.innerHTML = lines.length ? lines.map(o => `<div class="stock-order-row"><span class="n">+${o.need}</span><span class="t">${escapeHtml(o.name)}<small>지금 ${o.qty} / 기준 ${o.par} · ${escapeHtml(o.where.join(', '))}</small></span></div>`).join('')
+                + (uncounted ? `<div class="stock-empty" style="padding: 12px 8px;">기준은 있는데 아직 안 센 물건 ${uncounted}개는 빠졌어요.</div>` : '')
+                : `<div class="stock-empty">모자란 물건이 없어요.<br>${uncounted ? `기준은 있는데 아직 안 센 물건이 ${uncounted}개 있어요. [세기]에서 세 주세요.` : '[세기]에서 물건마다 <b>기준</b>(이만큼은 있어야 함)과 지금 수량을 적으면 여기 모여요.'}</div>`;
+            actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="setStockTab('count')">세기로</button>
+                <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="shareStockOrder()"${lines.length ? '' : ' disabled'}><i class="ti ti-send"></i> 보내기</button>`;
+        }
+    }
+    function stockItemAt(row) {
+        const [pi, zi, ii] = (row.dataset.at || '').split('.').map(Number), d = stockPhotos()[pi];
+        return d && d.zones[zi] && d.zones[zi].items[ii];
+    }
+    function syncStockRowLow(row, it) { row.classList.toggle('is-low', isNum(it.qty) && isNum(it.par) && it.qty < it.par); }
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#stockList [data-act]'); if (!btn) return;
+        const row = btn.closest('.stock-row'), it = row && stockItemAt(row); if (!it) return;
+        const cur = isNum(it.qty) ? it.qty : 0;
+        it.qty = btn.dataset.act === 'inc' ? cur + 1 : Math.max(0, cur - 1);
+        row.querySelector('[data-f="qty"]').value = it.qty;
+        syncStockRowLow(row, it); queueStockSave();
+    });
+    document.addEventListener('change', (e) => {
+        const input = e.target.closest('#stockList input[data-f]'); if (!input) return;
+        const row = input.closest('.stock-row'), it = row && stockItemAt(row); if (!it) return;
+        const v = input.value.trim() === '' ? null : Math.max(0, Math.floor(Number(input.value)));
+        if (v === null || !isFinite(v)) { delete it[input.dataset.f]; input.value = ''; } else { it[input.dataset.f] = v; input.value = v; }
+        syncStockRowLow(row, it); queueStockSave();
+    });
+    function finishStockCount() {
+        flushStockSave(); safeStorage.setItem(STOCK_COUNTED_KEY, String(Date.now()));
+        const { lines } = stockOrderLines();
+        showToast(lines.length ? `모자란 물건 ${lines.length}개를 발주 목록에 모았어요` : '다 셌어요. 모자란 물건이 없어요');
+        setStockTab('order');
+    }
+    function stockOrderText() {
+        const { lines } = stockOrderLines(), name = storeName();
+        return [`${name ? `[${name}] ` : ''}발주 목록 · ${fileDate()}`, ...lines.map(o => `- ${o.name}: ${o.need}개 (지금 ${o.qty} / 기준 ${o.par})`)].join('\n');
+    }
+    async function shareStockOrder() {
+        const text = stockOrderText();
+        if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+        try { await navigator.clipboard.writeText(text); showToast('발주 목록을 복사했어요. 카톡·문자에 붙여 넣으세요'); }
+        catch (e) { prompt('아래 글을 복사해 보내세요', text); }
+    }
+
     async function startApp() {
         await storageReady;
+        syncStockRow();
         loadVisitStats();
         isEditMode = false;
 
