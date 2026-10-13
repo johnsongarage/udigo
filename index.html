@@ -746,6 +746,7 @@
         .stock-row { display: flex; align-items: center; gap: 6px; padding: 6px 2px; border-bottom: 1px dashed var(--border); }
         .stock-name { flex: 1; min-width: 0; font-size: 14.5px; color: var(--text); overflow-wrap: anywhere; word-break: keep-all; }
         .stock-row.is-low .stock-name { color: var(--danger); font-weight: 700; }
+        .stock-name small { display: block; margin-top: 1px; font-size: 12px; font-weight: 400; color: var(--text3); } /* 메모(고치는 건 물건 관리 창에서) */
         .stock-ctl { display: flex; align-items: center; gap: 2px; flex: none; }
         .stock-ctl button { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 18px; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; }
         .stock-ctl input, .stock-par input { width: 46px; height: 36px; padding: 0 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font: inherit; font-size: 15px; font-weight: 700; text-align: center; box-sizing: border-box; }
@@ -1392,6 +1393,13 @@
         .zm-body .zm-item .cmt, .zm-body .zm-item.is-checked .cmt { display: none; }
         /* 담긴 칩을 누르면 메모 칸이 열린다 */
         .zm-body .zm-item.memo-open { flex-basis: 100%; border-radius: var(--radius-md); }
+        /* 재고를 켠 사람만: 메모 칸 아래 기준 수량 (재고 창의 "기준"과 같은 값) */
+        .zm-par { display: none; }
+        .zm-body .zm-item.memo-open .zm-par { display: flex; align-items: center; gap: 8px; margin: -4px 10px 10px; font-size: 12.5px; color: var(--on-accent); white-space: nowrap; }
+        .zm-par span { white-space: normal; font-size: 11.5px; line-height: 1.35; opacity: 0.75; }
+        .zm-par input { width: 64px; height: 34px; padding: 0 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 14px; text-align: center; box-sizing: border-box; }
+        .zm-parv { font-size: 11px; color: var(--text3); white-space: nowrap; }
+        .zm-body .zm-item.is-checked .zm-parv { color: var(--on-accent); opacity: 0.75; margin-left: 4px; }
         .zm-body .zm-item.memo-open .cmt { display: block; width: calc(100% - 20px); margin: 0 10px 10px; background: var(--card); color: var(--text); }
         .zm-save { flex: 1; }
         .zm-find-top { position: sticky; top: -16px; z-index: 1; margin: -16px -20px 14px; padding: 14px 20px 10px; background: var(--card); border-bottom: 1px solid var(--border); }
@@ -3087,10 +3095,11 @@
         const z = activeZone; if (!z) return;
         const state = new Map();
         if (preserve) {
-            document.querySelectorAll('#modal .zm-body .cb').forEach(cb => state.set(cb.value, { checked: cb.checked, comment: cb.parentElement.nextElementSibling.value }));
+            document.querySelectorAll('#modal .zm-body .cb').forEach(cb => { const parEl = cb.closest('.zm-item').querySelector('.par'); state.set(cb.value, { checked: cb.checked, comment: cb.parentElement.nextElementSibling.value, par: parEl ? parEl.value : '' }); });
         } else {
-            z.items.forEach(it => state.set(it.name, { checked: true, comment: it.comment || '' }));
+            z.items.forEach(it => state.set(it.name, { checked: true, comment: it.comment || '', par: typeof it.par === 'number' ? String(it.par) : '' }));
         }
+        const withStock = stockOn();
         // 품목 목록에 없는 물건이 구역에 들어 있어도 저장할 때 사라지지 않도록 함께 보여준다.
         // 담지 않은 후보는 지금 품목 목록(baseItems)만 — 업종을 고른 뒤 예전 기본 품목이 이 구역에만 남아 보이다가 다음 구역에선 사라져 보였다
         const names = [...new Set([...z.items.map(it => it.name), ...baseItems, ...[...state.keys()].filter(n => state.get(n).checked)])];
@@ -3099,15 +3108,16 @@
 
         // 담긴 물건은 위 칩 묶음(zmPicked), 나머지 후보는 아래(itemList). 체크박스·메모 칸 구조는 그대로라 저장·가져오기 코드는 그대로 쓴다
         const chip = (name) => {
-            const st = state.get(name) || { checked: false, comment: '' };
+            const st = state.get(name) || { checked: false, comment: '', par: '' };
             return `<div class="zm-item ${st.checked ? 'is-checked' : ''} ${st.comment ? 'has-memo' : ''}">
                         <label class="zm-item-main" onclick="zmChipClick(event, this)">
                             <input type="checkbox" class="cb" value="${escapeHtml(name)}" ${st.checked ? 'checked' : ''} onchange="toggleCommentField(this)">
                             <span class="zm-check" aria-hidden="true"></span>
-                            <i class="ti ti-note zm-memo-ic" aria-label="메모 있음"></i><span class="zm-item-name">${escapeHtml(name)}</span><small class="zm-memo">${escapeHtml(st.comment)}</small>
+                            <i class="ti ti-note zm-memo-ic" aria-label="메모 있음"></i><span class="zm-item-name">${escapeHtml(name)}</span><small class="zm-memo">${escapeHtml(st.comment)}</small>${withStock && st.par !== '' ? `<small class="zm-parv">기준 ${escapeHtml(st.par)}</small>` : ''}
                             <i class="ti ti-plus zm-plus" aria-hidden="true"></i><span class="zm-x" title="빼기" aria-label="빼기">×</span>
                         </label>
                         <input type="text" class="cmt" placeholder="세부 위치 메모 (예: 맨 윗칸 왼쪽)" value="${escapeHtml(st.comment)}" enterkeyhint="done" oninput="const it = this.closest('.zm-item'); it.querySelector('.zm-memo').textContent = this.value; it.classList.toggle('has-memo', !!this.value.trim())">
+                        ${withStock ? `<label class="zm-par">기준 수량 <input type="number" class="par" inputmode="numeric" min="0" placeholder="–" value="${escapeHtml(st.par || '')}" aria-label="${escapeHtml(name)} 기준 수량"><span>이만큼은 있어야 해요 · 지금 수량은 [재고]에서 세요</span></label>` : ''}
                     </div>`;
         };
         document.getElementById('zmPicked').innerHTML = names.filter(n => (state.get(n) || {}).checked).map(chip).join('');
@@ -4043,8 +4053,14 @@
         if (!activeZone || !activeData || !activeData.zones.includes(activeZone) || document.getElementById('modal').style.display !== 'flex') return;
         const name = document.getElementById('zoneNameInput').value;
         // 이름·메모만 다시 만들고, 원래 물건에 있던 다른 값(재고 수량·기준 등)은 그대로 둔다
-        const items = [...document.querySelectorAll('#modal .zm-body .cb:checked')].map(cb => ({ ...(activeZone.items.find(i => i.name === cb.value) || {}), name: cb.value, comment: cb.parentElement.nextElementSibling.value || "" }));
-        const changed = name !== activeZone.name || JSON.stringify(items) !== JSON.stringify(activeZone.items.map(i => ({ name: i.name, comment: i.comment || "" })));
+        const items = [...document.querySelectorAll('#modal .zm-body .cb:checked')].map(cb => {
+            const it = { ...(activeZone.items.find(i => i.name === cb.value) || {}), name: cb.value, comment: cb.parentElement.nextElementSibling.value || "" };
+            const parEl = cb.closest('.zm-item').querySelector('.par'); // 재고를 켠 사람만 있는 칸: 비우면 기준을 지운다
+            if (parEl) { const v = parEl.value.trim() === '' ? NaN : Math.max(0, Math.floor(Number(parEl.value))); if (isFinite(v)) it.par = v; else delete it.par; }
+            return it;
+        });
+        const pick = (i) => ({ name: i.name, comment: i.comment || "", par: typeof i.par === 'number' ? i.par : null });
+        const changed = name !== activeZone.name || JSON.stringify(items.map(pick)) !== JSON.stringify(activeZone.items.map(pick));
         if (!changed && !confirmed) return;
         if (changed) saveHistory();
         markZoneChecked(activeZone); activeZone.name = name; activeZone.items = items;
@@ -4320,7 +4336,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.13.6';
+    const APP_VERSION = '베타 2026.10.13.7';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6391,7 +6407,7 @@
                     z.items.map((it, ii) => {
                         const low = isNum(it.qty) && isNum(it.par) && it.qty < it.par;
                         return `<div class="stock-row${low ? ' is-low' : ''}" data-at="${pi}.${zi}.${ii}">
-                            <span class="stock-name">${escapeHtml(it.name)}</span>
+                            <span class="stock-name">${escapeHtml(it.name)}${(it.comment || '').trim() ? `<small>${escapeHtml(it.comment.trim())}</small>` : ''}</span>
                             <span class="stock-ctl"><button type="button" data-act="dec" aria-label="${escapeHtml(it.name)} 하나 빼기">−</button><input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="qty" value="${isNum(it.qty) ? it.qty : ''}" placeholder="?" aria-label="${escapeHtml(it.name)} 지금 수량"><button type="button" data-act="inc" aria-label="${escapeHtml(it.name)} 하나 더하기">+</button></span>
                             <label class="stock-par">기준<input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="par" value="${isNum(it.par) ? it.par : ''}" placeholder="–" aria-label="${escapeHtml(it.name)} 기준 수량"></label>
                         </div>`;
