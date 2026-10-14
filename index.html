@@ -622,6 +622,8 @@
         .zoom-box.is-fs .zoom-ctl { bottom: calc(env(safe-area-inset-bottom, 0px) + 66px); right: 14px; left: auto; } /* 오른쪽 아래 버튼 모음 바로 위 (PC 넓은 화면에서 왼쪽 끝은 너무 멀었다) */
         body.photo-fs #printBackdrop { z-index: 1101; }
         body.photo-fs #printModal { z-index: 1102; } /* 크게 보기 위에서도 인쇄물 창이 보이게 */
+        body.photo-fs #stockBackdrop { z-index: 1101; }
+        body.photo-fs #stockModal { z-index: 1102; } /* 크게 보기 위에서도 재고 창이 보이게 (뒤에 숨어 안 보였다) */
         /* 크게 보기에서도 편집·되돌리기 버튼 모음과 편집 중 띠를 위에 띄운다 (확대해서 작은 칸을 정확히 그리게). 글자 크기 +/−는 숨김 */
         body.photo-fs .floating-remote { z-index: 1099; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
         body.photo-fs .edit-bar { z-index: 1099; }
@@ -4336,7 +4338,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.14.1';
+    const APP_VERSION = '베타 2026.10.14.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6341,6 +6343,7 @@
         if (!stockPhotos().some(d => d.zones.some(z => z.items.length))) { alert('먼저 구역에 물건을 적어 주세요.'); return; }
         stockTab = tab || 'count';
         renderStock();
+        if (document.getElementById('stockModal').style.display === 'flex') return; // 이미 열려 있음: 스크롤 잠금을 또 걸면 닫아도 안 풀려 화면이 굳었다
         document.getElementById('stockBackdrop').style.display = 'block';
         document.getElementById('stockModal').style.display = 'flex';
         lockPageScroll();
