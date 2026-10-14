@@ -4357,7 +4357,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.14.3';
+    const APP_VERSION = '베타 2026.10.14.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -4402,7 +4402,7 @@
         reloadAfterSave();
     }
     function backupJson() {
-        return JSON.stringify({ app: 'changgojigi', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), note: "백업", savedSystemData: JSON.parse(safeStorage.getItem('savedSystemData') || "[]"), baseItems: JSON.parse(safeStorage.getItem('baseItems') || "[]") });
+        return JSON.stringify({ app: 'changgojigi', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), note: "백업", savedSystemData: JSON.parse(safeStorage.getItem('savedSystemData') || "[]"), baseItems: JSON.parse(safeStorage.getItem('baseItems') || "[]"), stockLog: JSON.parse(safeStorage.getItem('stockLog') || "[]") });
     }
     function markBackedUp() {
         if (!isSamplePreview) { try { safeStorage.setItem('lastBackupAt', String(Date.now())); } catch (e) {} }
@@ -4496,6 +4496,7 @@
             if (isSamplePreview) { try { sessionStorage.removeItem(SAMPLE_PREVIEW_KEY); } catch (e) {} isSamplePreview = false; }
             safeStorage.setItem('savedSystemData', JSON.stringify(imported.savedSystemData));
             safeStorage.setItem('baseItems', JSON.stringify(imported.baseItems));
+            if (Array.isArray(imported.stockLog)) safeStorage.setItem('stockLog', JSON.stringify(imported.stockLog)); else safeStorage.removeItem('stockLog'); // 예전 백업엔 없음
             safeStorage.removeItem('isSampleData'); // 예시를 불러온 적 있는 폰에서 복구한 데이터가 예시로 취급되지 않게
             safeStorage.setItem('lastBackupAt', String(Date.now())); safeStorage.setItem('dataChangedAt', '0');
             reloadAfterSave();
@@ -6338,7 +6339,7 @@
     //   값은 물건마다 qty(지금 수량)·par(기준 수량: 이만큼은 있어야 함)로 사진 데이터 안에 같이 저장된다 (백업에도 들어감, 서버 없음)
     //   발주 목록 = 기준이 있는 물건 중 지금 수량 < 기준 → 모자란 만큼. 이름이 같으면 여러 구역 것을 합친다
     // ────────────────────────────────────────────────────────────
-    const STOCK_KEY = 'stockMode', STOCK_COUNTED_KEY = 'stockCountedAt';
+    const STOCK_KEY = 'stockMode', STOCK_COUNTED_KEY = 'stockCountedAt', STOCK_LOG_KEY = 'stockLog';
     let stockTab = 'count', stockSaveTimer = 0;
     function stockOn() { return safeStorage.getItem(STOCK_KEY) === '1'; }
     const isNum = (v) => typeof v === 'number' && isFinite(v);
@@ -6466,8 +6467,20 @@
         if (v === null || !isFinite(v)) { delete it[input.dataset.f]; input.value = ''; } else { it[input.dataset.f] = v; input.value = v; }
         syncStockRowLow(row, it); queueStockSave();
     });
+    // [다 셌어요]를 누를 때마다 물건 이름별 수량을 날짜와 함께 남긴다 (화면엔 안 보임).
+    // 나중에 "지난번보다 줄어든 만큼 = 쓴 양"으로 하루 평균을 내서 발주량을 예측하려는 준비. 같은 날 다시 세면 그날 기록을 바꾼다
+    function recordStockCount() {
+        if (isSamplePreview) return;
+        const q = {};
+        stockPhotos().forEach(d => d.zones.forEach(z => z.items.forEach(it => { if (isNum(it.qty)) q[it.name] = (q[it.name] || 0) + it.qty; })));
+        if (!Object.keys(q).length) return;
+        let log = []; try { log = JSON.parse(safeStorage.getItem(STOCK_LOG_KEY) || '[]'); if (!Array.isArray(log)) log = []; } catch (e) {}
+        const now = new Date(), d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        log = log.filter(e => e && e.d !== d); log.push({ d, at: now.getTime(), q });
+        try { safeStorage.setItem(STOCK_LOG_KEY, JSON.stringify(log.slice(-180))); } catch (e) {} // 반년 치(매일 세도)면 충분
+    }
     function finishStockCount() {
-        flushStockSave(); safeStorage.setItem(STOCK_COUNTED_KEY, String(Date.now()));
+        flushStockSave(); safeStorage.setItem(STOCK_COUNTED_KEY, String(Date.now())); recordStockCount();
         const { lines } = stockOrderLines();
         showToast(lines.length ? `모자란 물건 ${lines.length}개를 발주 목록에 모았어요` : '다 셌어요. 모자란 물건이 없어요');
         setStockTab('order');
