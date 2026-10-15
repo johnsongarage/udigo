@@ -726,6 +726,23 @@
         .print-zoom-btn { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 0; border-radius: 16px; background: rgba(26,26,24,0.72); color: #fff; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
         .print-page-badge { position: absolute; bottom: 8px; right: 8px; padding: 3px 9px; border-radius: 12px; background: rgba(26,26,24,0.72); color: #fff; font-size: 12px; font-weight: 700; pointer-events: none; }
         #printModal .settings-head { margin-bottom: 12px; gap: 10px; }
+        /* 옵션 + 미리보기 묶음. 좁은 화면: 위아래(옵션은 한 줄 요약으로 접힘) · 넓은 화면: 왼쪽 옵션, 오른쪽 미리보기 */
+        #printModal .print-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+        .print-controls { flex: none; }
+        .print-controls[hidden] { display: none; }
+        .print-summary { flex: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0 0 10px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; cursor: pointer; }
+        .print-summary span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .print-summary b { flex: none; color: var(--accent-text); font-size: 13px; }
+        @media (min-width: 900px) {
+            #printModal { width: 94%; max-width: 1100px; height: 92vh; height: 92dvh; max-height: none; }
+            #printModal .print-body { flex-direction: row; gap: 20px; }
+            #printModal .print-controls { width: 330px; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+            #printModal .print-controls[hidden] { display: block; } /* 넓으면 늘 펼침 */
+            #printModal .print-summary, #printModal #printOptRow { display: none; } /* 요약·옵션 접기 버튼 대신 옵션을 바로 보인다 */
+            #printModal .print-opt-panel { margin-top: 0; }
+            #printModal .print-sub { margin-left: 0; white-space: normal; }
+            #printModal .print-pages canvas { width: auto; max-width: 100%; max-height: calc(92dvh - 190px); margin: 0 auto; } /* 한 쪽이 통째로 보이게 (폭에 맞추면 A4가 길어 반쪽만 보였다) */
+        }
         /* 📦 재고 세기: 기본으로 켜짐 (설정에서 끌 수 있음). 선반(구역) 순서대로 돌며 − 수량 + 로 세고, 기준보다 모자란 것을 발주 목록으로 */
         #stockBackdrop { display: none; position: fixed; inset: 0; background: rgba(26,26,24,0.45); z-index: 1089; }
         /* 위에 바짝 붙이고 높이를 고정: 탭을 바꿔도 창 위치·크기가 그대로 (가운데 정렬이면 내용 길이에 따라 위아래로 움직였다) */
@@ -2004,6 +2021,11 @@
         </div>
         <button class="btn-ghost" onclick="closePrintPreview()" aria-label="닫기"><i class="ti ti-x"></i></button>
     </div>
+    <!-- 좁은 화면: 고른 것 한 줄 요약 (누르면 아래 옵션들이 펼쳐진다) — 옵션이 창 절반을 차지해 미리보기가 반쪽만 보였다 -->
+    <button type="button" id="printSummary" class="print-summary" aria-expanded="false" aria-controls="printControls" onclick="togglePrintControls()"><span id="printSummaryText"></span><b id="printSummaryAct"></b></button>
+    <!-- 넓은 화면(태블릿 가로·PC): 왼쪽 옵션 · 오른쪽 미리보기 -->
+    <div class="print-body">
+    <div id="printControls" class="print-controls">
     <!-- 양식: 지도(사진+찾아보기) · 위치 목록(큰 글씨 표) · 점검표 -->
     <div class="print-row">
         <span class="print-row-label">양식</span>
@@ -2058,11 +2080,13 @@
             </div>
         </div>
     </div>
+    </div><!-- /print-controls -->
     <div id="printPreviewWrap" class="print-preview-wrap">
         <div id="printPages" class="print-pages" onclick="if (event.target.tagName === 'CANVAS') openPrintViewer(event.target)"></div>
         <button type="button" class="print-zoom-btn" onclick="openPrintViewer()"><i class="ti ti-arrows-maximize"></i> 크게 보기</button>
         <span id="printPageBadge" class="print-page-badge" hidden></span>
     </div>
+    </div><!-- /print-body -->
     <div class="print-actions">
         <button type="button" class="btn-base btn-secondary" onclick="closePrintPreview()">닫기</button>
         <button type="button" id="printDownloadBtn" class="btn-base btn-primary" onclick="downloadReportAsPDF()"><i class="ti ti-download"></i> PDF 받기</button>
@@ -4358,7 +4382,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.15.1';
+    const APP_VERSION = '베타 2026.10.15.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6052,7 +6076,7 @@
         const photos = imageList.filter(d => d.id !== 'dummy_root' && d.canvas);
         if (!photos.length) { alert("먼저 사진을 등록해주세요."); return; }
         const data = photos.find(d => d.id == (dataId || currentPhotoId)) || photos[0];
-        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
+        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
         renderPrintPreview(photos.length > 1 && !dataId ? 'all' : 'photo');
         document.getElementById('printModal').style.display = 'flex';
         // 이미 열려 있는데 또 열면(인쇄 버튼 두 번 등) 잠금이 두 번 걸리고 닫을 때 한 번만 풀려 스크롤이 막힌 채 남았다
@@ -6123,7 +6147,9 @@
             : form === 'map' ? (printOpts.ink ? '잉크 절약' : '사진 그대로') : '바꿀 것 없음';
         document.getElementById('printOptText').textContent = summary;
         optBtn.disabled = form === 'check';
-        const open = printOptsOpen && form !== 'check';
+        document.getElementById('printSummaryText').textContent = [F.title, multi ? (printScope === 'all' ? `전체 ${photos.length}장` : `${photoLetter(i)} 사진만`) : '', form === 'check' ? '' : summary].filter(Boolean).join(' · ');
+        syncPrintControls();
+        const open = (printOptsOpen || printWide()) && form !== 'check';
         panel.hidden = !open; optBtn.setAttribute('aria-expanded', String(open));
         // PDF는 양식·범위 모두 미리보기에 보이는 그대로 (예전엔 지도만 범위와 상관없이 전부 받아져 헷갈렸다)
         const label = form === 'map' ? (printScope === 'all' && multi ? '사진 전체' : (data.title || '')) : F.title;
@@ -6157,8 +6183,20 @@
     // 옵션 펼치기/접기 (창이 열려 있는 동안 그대로)
     let printOptsOpen = false;
     function togglePrintOpts() { printOptsOpen = !printOptsOpen; renderPrintOptsOnly(); }
+    // 좁은 화면: 처음엔 옵션을 접고 한 줄 요약만 (대부분 고른 그대로 바로 받는다). 넓은 화면: 늘 펼침
+    let printCtlOpen = false;
+    const printWideMq = window.matchMedia('(min-width: 900px)');
+    const printWide = () => printWideMq.matches;
+    function togglePrintControls() { printCtlOpen = !printCtlOpen; syncPrintControls(); }
+    function syncPrintControls() {
+        const open = printCtlOpen || printWide();
+        document.getElementById('printControls').hidden = !open;
+        document.getElementById('printSummary').setAttribute('aria-expanded', String(open));
+        document.getElementById('printSummaryAct').innerHTML = printCtlOpen ? '접기 <i class="ti ti-chevron-up"></i>' : '바꾸기 <i class="ti ti-chevron-down"></i>';
+    }
+    printWideMq.addEventListener('change', () => { syncPrintControls(); renderPrintOptsOnly(); });
     function renderPrintOptsOnly() {
-        const panel = document.getElementById('printOptPanel'), open = printOptsOpen && printOpts.form !== 'check';
+        const panel = document.getElementById('printOptPanel'), open = (printOptsOpen || printWide()) && printOpts.form !== 'check';
         panel.hidden = !open; document.getElementById('printOptBtn').setAttribute('aria-expanded', String(open));
     }
     // 매장 이름 한 줄: "머리글: 다산점 창고 ✎" / 비어 있으면 "+ 매장 이름 넣기"
