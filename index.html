@@ -752,8 +752,8 @@
         .stock-ctl { display: flex; align-items: center; gap: 2px; flex: none; }
         .stock-ctl button { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 18px; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; }
         .stock-ctl input, .stock-par input { width: 46px; height: 36px; padding: 0 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font: inherit; font-size: 15px; font-weight: 700; text-align: center; box-sizing: border-box; }
-        .stock-par { display: flex; flex-direction: column; align-items: center; flex: none; font-size: 10.5px; color: var(--text3); line-height: 1.1; }
-        .stock-par input { width: 44px; height: 30px; font-size: 13px; font-weight: 400; margin-top: 2px; }
+        .stock-par { display: flex; align-items: center; gap: 4px; flex: none; margin-left: 6px; font-size: 11.5px; color: var(--text3); line-height: 1; white-space: nowrap; } /* "기준"을 칸 왼쪽에: 위에 얹으면 칸이 − ? + 보다 아래로 처져 보였다 */
+        .stock-par input { width: 44px; height: 36px; font-size: 13px; font-weight: 400; }
         .stock-order-row { display: flex; align-items: baseline; gap: 8px; padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 14.5px; }
         .stock-order-row .n { flex: none; min-width: 44px; text-align: right; font-weight: 800; color: var(--danger); }
         .stock-order-row .t { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
@@ -4358,7 +4358,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.14.5';
+    const APP_VERSION = '베타 2026.10.15.1';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
