@@ -684,8 +684,8 @@
         .font-pill sub, .font-pill sup { font-size: 10px; margin-left: 1px; }
         .font-pill button:active { background: var(--accent-soft); }
         .font-pill-sep { width: 1px; height: 18px; background: var(--border); }
-        #printFab { color: var(--accent-text); }
-        #printFab .ti { font-size: 17px; }
+        #printFab { width: auto; padding: 0 11px 0 9px; gap: 3px; border-radius: 18px; color: var(--accent-text); font-size: 13px; font-weight: 800; } /* 아이콘만으론 뜻이 안 보여 "인쇄" 글자를 붙임 */
+        #printFab .ti { font-size: 16px; }
         body.editing #printFab { display: none; }
         #undoBtn { background: var(--bg); color: var(--text3); border-color: var(--ivory-border); cursor: not-allowed; box-shadow: none; }
 
@@ -781,6 +781,8 @@
         /* 재고 버튼은 켠 사람만 보이니 "재고" 글자를 붙여 알아보게 (색은 다른 버튼과 같게) */
         #stockFab { width: auto; padding: 0 11px 0 9px; gap: 3px; border-radius: 18px; color: var(--accent-text); font-size: 13px; font-weight: 800; }
         #stockFab .ti { font-size: 16px; }
+        /* 새 기능 알림: 한 번 열어 볼 때까지 연한 형광 테두리 */
+        #stockFab.is-new { border: 1.5px solid #b5e61d; box-shadow: 0 0 0 3px rgba(181,230,29,0.28), var(--shadow-xs); }
         #stockFab[hidden] { display: none; } /* .fab-btn의 display가 hidden을 덮어 꺼도 보였다 */
         body.editing #stockFab { display: none; }
         .print-name-line { flex: 1; min-width: 0; display: flex; }
@@ -1867,7 +1869,7 @@
 <div class="floating-remote" id="floatingRemote">
     <button id="detailToggleBtn" onclick="toggleDetails()" class="fab-btn" title="말풍선 토글"><i class="ti ti-message-circle"></i></button>
     <button id="undoBtn" onclick="undo()" class="fab-btn" title="되돌리기" disabled><i class="ti ti-arrow-back-up"></i></button>
-    <button id="printFab" onclick="openPrintPreview(fsPhoto ? fsPhoto.data.id : undefined)" class="fab-btn" title="인쇄물 보기 (종이·PDF)" aria-label="인쇄물 보기"><i class="ti ti-printer"></i></button>
+    <button id="printFab" onclick="openPrintPreview(fsPhoto ? fsPhoto.data.id : undefined)" class="fab-btn" title="인쇄물 보기 (종이·PDF)" aria-label="인쇄물 보기"><i class="ti ti-printer"></i><span>인쇄</span></button>
     <button id="stockFab" onclick="openStock()" class="fab-btn" title="재고 세기·발주 목록" aria-label="재고 세기" hidden><i class="ti ti-clipboard-list"></i><span>재고</span></button>
     <button id="mainModeBtn" onclick="toggleEditMode()" title="구역·물건 고치기" aria-label="구역·물건 고치기">
         <i id="modeIcon" class="ti ti-pencil" style="font-size: 14px;"></i>
@@ -4382,7 +4384,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.15.3';
+    const APP_VERSION = '베타 2026.10.15.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6388,7 +6390,7 @@
     }
     function syncStockRow() {
         const el = document.getElementById('stockRowText'); if (el) el.textContent = stockOn() ? '켜짐' : '꺼짐';
-        const fab = document.getElementById('stockFab'); if (fab) fab.hidden = !stockOn();
+        const fab = document.getElementById('stockFab'); if (fab) { fab.hidden = !stockOn(); fab.classList.toggle('is-new', safeStorage.getItem('stockSeen') !== '1'); }
     }
     function toggleStockMode() {
         const on = !stockOn();
@@ -6401,6 +6403,7 @@
     function openStock(tab) {
         if (!stockPhotos().some(d => d.zones.some(z => z.items.length))) { alert('먼저 구역에 물건을 적어 주세요.'); return; }
         stockTab = tab || 'count';
+        if (safeStorage.getItem('stockSeen') !== '1') { safeStorage.setItem('stockSeen', '1'); document.getElementById('stockFab').classList.remove('is-new'); } // 한 번 열면 형광 테두리 끝
         renderStock();
         if (document.getElementById('stockModal').style.display === 'flex') return; // 이미 열려 있음: 스크롤 잠금을 또 걸면 닫아도 안 풀려 화면이 굳었다
         document.getElementById('stockBackdrop').style.display = 'block';
