@@ -758,6 +758,14 @@
         #stockModal > * { flex: none; }
         #stockModal .settings-head { margin-bottom: 10px; }
         .stock-sub { margin: -4px 0 10px; font-size: 12.5px; color: var(--text3); word-break: keep-all; }
+        .stock-help-btn { margin: 0 6px 0 auto; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; background: var(--bg); color: var(--text2); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+        /* 처음 한 번만: 목록 맨 위 안내 카드 (? 로 다시 펼침) */
+        .stock-intro { margin: 10px 0 4px; padding: 12px 14px; border: 1px solid var(--accent2, var(--border)); border-radius: 12px; background: var(--bg); font-size: 13.5px; color: var(--text); line-height: 1.5; word-break: keep-all; }
+        .stock-intro b.t { display: block; margin-bottom: 6px; font-size: 14px; }
+        .stock-intro ol { margin: 0; padding-left: 20px; }
+        .stock-intro li { margin: 3px 0; }
+        .stock-intro li small { display: block; color: var(--text3); font-size: 12px; }
+        .stock-intro .ok { display: block; margin: 10px 0 0 auto; min-height: 36px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
         #stockModal .stock-list { flex: 1 1 auto; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; margin-top: 10px; border-top: 1px solid var(--border); }
         .stock-photo { position: sticky; top: 0; z-index: 1; background: var(--card); padding: 10px 2px 6px; font-size: 13px; font-weight: 700; color: var(--accent-text); border-bottom: 1px solid var(--border); }
         .stock-zone { padding: 8px 2px 2px; font-size: 12.5px; font-weight: 700; color: var(--text2); }
@@ -2001,6 +2009,7 @@
 <div id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockTitle">
     <div class="settings-head">
         <h3 id="stockTitle"><i class="ti ti-clipboard-list"></i> 재고</h3>
+        <button type="button" class="stock-help-btn" onclick="toggleStockIntro()" aria-label="재고 쓰는 법" title="쓰는 법">?</button>
         <button class="btn-ghost" onclick="closeStock()" aria-label="닫기"><i class="ti ti-x"></i></button>
     </div>
     <p class="stock-sub" id="stockSub"></p>
@@ -4384,7 +4393,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.15.4';
+    const APP_VERSION = '베타 2026.10.15.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6439,6 +6448,14 @@
         imageList.forEach(d => render(d)); // 칩의 수량 숫자 새로
     }
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStock(); });
+    // 처음 안내 카드: 한 번 [알겠어요] 하면 안 나옴, 제목 옆 ? 로 다시
+    let stockIntroOpen = false;
+    function closeStockIntro() { safeStorage.setItem('stockIntroSeen', '1'); stockIntroOpen = false; document.querySelector('#stockList .stock-intro')?.remove(); }
+    function toggleStockIntro() {
+        const shown = !!document.querySelector('#stockList .stock-intro');
+        if (shown) { closeStockIntro(); return; }
+        stockIntroOpen = true; if (stockTab !== 'count') stockTab = 'count'; renderStock(); document.getElementById('stockList').scrollTop = 0;
+    }
     function setStockTab(t) { flushStockSave(); stockTab = t; renderStock(); }
     // 누를 때마다 전체(사진 포함)를 저장하면 무거우니 잠깐 모았다가 한 번에
     function queueStockSave() { clearTimeout(stockSaveTimer); stockSaveTimer = setTimeout(() => { stockSaveTimer = 0; saveData(); }, 700); }
@@ -6463,11 +6480,17 @@
         document.querySelectorAll('#stockModal [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === stockTab)));
         document.getElementById('stockOrderTab').textContent = lines.length ? `발주 목록 (${lines.length})` : '발주 목록';
         document.getElementById('stockSub').textContent = stockTab === 'count'
-            ? `선반 순서대로 세요. 기준(이만큼은 있어야 함)을 적어 두면 모자란 것이 발주 목록에 모여요.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`
+            ? `선반 순서대로 세요.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`
             : '기준보다 모자란 것만 모았어요. 보내기로 카톡·문자에 붙여 넣으세요.';
         const actions = document.getElementById('stockActions');
         if (stockTab === 'count') {
-            list.innerHTML = photos.map((d, pi) => {
+            const intro = (stockIntroOpen || safeStorage.getItem('stockIntroSeen') !== '1') ? `<div class="stock-intro" role="note">
+                <b class="t">처음이세요? 세 가지만 알면 돼요</b>
+                <ol><li><b>− ? +</b> 로 지금 몇 개 있는지 세요<small>모르면 비워 둬도 돼요</small></li>
+                <li><b>기준</b> = 이만큼은 있어야 하는 수<small>기준보다 적으면 빨갛게 보여요</small></li>
+                <li><b>[다 셌어요]</b>를 누르면 모자란 것만 <b>[발주 목록]</b>에 모여요<small>카톡·문자로 바로 보낼 수 있어요</small></li></ol>
+                <button type="button" class="ok" onclick="closeStockIntro()">알겠어요</button></div>` : '';
+            list.innerHTML = intro + photos.map((d, pi) => {
                 const zones = d.zones.map((z, zi) => z.items.length ? `<div class="stock-zone"><b>${stockCode(pi, zi, multi)}</b>${escapeHtml(z.name || '이름 없는 구역')}</div>` +
                     z.items.map((it, ii) => {
                         const low = isNum(it.qty) && isNum(it.par) && it.qty < it.par;
