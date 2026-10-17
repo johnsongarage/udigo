@@ -575,7 +575,7 @@
         @media (prefers-reduced-motion: reduce) { .draw-demo::before { animation: none; width: 34px; height: 22px; } .draw-demo::after { animation: none; left: 34px; top: 22px; } }
         .zone-note-slot { position: absolute; display: flex; align-items: flex-start; padding: var(--slot-pad, 5px) 3px 2px var(--slot-pad, 5px); transition: opacity 0.2s; }
         .zone-note-slot.is-tiny { align-items: center; padding-top: 0; padding-bottom: 0; }
-        .zone-note { position: relative; max-width: 100%; min-width: 0; padding: 3px 6px 3px var(--note-padl, 6px); background: #fff3a3; color: #2b2716; font-weight: 600; font-size: var(--note-fs, 12.5px); line-height: var(--note-lh, 17px); border-radius: 2px 2px 7px 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.28), 0 3px 8px rgba(0,0,0,0.14); transition: opacity 0.8s ease; }
+        .zone-note { position: relative; max-width: 100%; min-width: 0; padding: 3px 6px 3px var(--note-padl, 6px); background: #fff3a3; color: #2b2716; font-weight: 600; font-size: var(--note-fs, 12.5px); line-height: var(--note-lh, 17px); border-radius: 2px 2px 7px 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.28), 0 3px 8px rgba(0,0,0,0.14); transition: opacity 0.45s ease; }
         .zone-note > div { word-break: keep-all; overflow-wrap: anywhere; }
         .zone-note.one-line > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zone-note .it { padding-left: 0.7em; text-indent: -0.7em; } /* 줄이 바뀐 긴 이름은 들여 써서 다른 물건처럼 보이지 않게 */
@@ -590,7 +590,7 @@
         .zone-note.is-tiny { min-width: 2.8em; padding: 0 5px; font-size: 0.86em; line-height: 1.45; }
         .zone-note.is-focus { outline: 2.5px solid #ff6ee0; outline-offset: 1px; box-shadow: 0 0 12px rgba(255, 90, 217, 0.85); } /* 찾은 칸 쪽지도 네온 */
         .note-layer.has-focus .zone-note:not(.is-focus), .note-layer.has-focus .is-empty:not(.is-focus) { opacity: 0.3; }
-        .zone-note-slot.is-empty { transition: opacity 0.8s ease; }
+        .zone-note-slot.is-empty { transition: opacity 0.45s ease; }
         /* 칸 번호: 쪽지 왼쪽 위 구석의 동그라미 (빈 칸은 번호만). 칸이 붙어 있어도 어느 칸 번호인지 헷갈리지 않게 동그라미 전체가 칸 안에 들어온다 */
         .zone-num { position: absolute; top: calc(var(--num-off, 6px) * -1); left: calc(var(--num-off, 6px) * -1); min-width: 1.6em; height: 1.6em; padding: 0 0.3em; border-radius: 0.8em; display: inline-flex; align-items: center; justify-content: center; background: #2b2716; color: #fff3a3; font-size: var(--num-fs, 8.5px); font-weight: 800; line-height: 1; text-indent: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         .is-empty .zone-num { position: static; background: rgba(43,39,22,0.62); color: #fff; }
@@ -3995,10 +3995,10 @@
             from: { x: targetCx - fromW / 2, y: targetCy - fromH / 2, w: fromW, h: fromH },
             to: { x: zone.x, y: zone.y, w: zone.w, h: zone.h },
             startTime: performance.now(),
-            flyDuration: 1100, // 서서히 어두워지며 좁혀 든다 (빠르면 화면이 확 바뀌는 느낌이었다)
+            flyDuration: 650, // 서서히 어두워지며 좁혀 든다 (0.5초는 확 바뀌는 느낌, 1.1초는 너무 느긋했다)
             blinkStart: null,
-            pulseMs: 230,      // 맥박 한 번 ≈ 1.45초 (2π × 230)
-            holdDuration: 2 * Math.PI * 230 * 2 // 맥박 두 번 뒤 멈춤 — 맥박이 잦아든 자리에서 끝나 끝 테두리로 매끄럽게 이어진다
+            pulseMs: 160,      // 맥박 한 번 ≈ 1초 (2π × 160)
+            holdDuration: 2 * Math.PI * 160 * 2 // 맥박 두 번 뒤 멈춤 — 맥박이 잦아든 자리에서 끝나 끝 테두리로 매끄럽게 이어진다
         };
         renderZoneNotes(data, !isEditMode && data.id !== 'dummy_root'); // 쪽지도 화면과 함께 흐려지기 시작
         if (!data.aiScanning) snapFlyBase(data, seq); // 지금 캔버스가 곧 밑그림 (어둡게 덮기 전 상태) → 첫 프레임에 다시 그리지 않는다
@@ -4089,11 +4089,11 @@
             glowRect(to.x, to.y, to.w, to.h, 10 * k, 2.5 * k); // 끝나면 네온 테두리로 계속 남는다 (맥박이 잦아든 모습 그대로)
         } else {
             const el = now - anim.blinkStart, total = anim.holdDuration;
-            const lift = 1 - easeInOutCubic(Math.min(1, el / 900)); // 안착 직후 진한 막이 평소 스포트라이트 밝기로 천천히 걷힌다
+            const lift = 1 - easeInOutCubic(Math.min(1, el / 550)); // 안착 직후 진한 막이 평소 스포트라이트 밝기로 천천히 걷힌다
             outside(to.x, to.y, to.w, to.h, 0.6 + 0.25 * lift, 0.3 + 0.5 * lift); // 안착 직후 진한 막이 평소 스포트라이트 밝기(0.6)로 걷힌다
-            const pulse = 0.5 - 0.5 * Math.cos(el / anim.pulseMs), fillIn = Math.min(1, el / 400); // 0에서 시작해 0으로 끝나는 느린 맥박
+            const pulse = 0.5 - 0.5 * Math.cos(el / anim.pulseMs), fillIn = Math.min(1, el / 250); // 0에서 시작해 0으로 끝나는 느린 맥박
             // 레이더 고리: 찾은 칸 가운데서 퍼져 나간다
-            const ringEvery = 1000, life = 1500, maxR = Math.max(to.w, to.h) * 0.9 + 30 * k;
+            const ringEvery = 700, life = 1100, maxR = Math.max(to.w, to.h) * 0.9 + 30 * k;
             for (let r0 = 0; r0 <= Math.min(el, total - life); r0 += ringEvery) {
                 const age = el - r0; if (age > life) continue;
                 const p = age / life, r = 8 * k + maxR * easeOutCubic(p);
@@ -4436,7 +4436,7 @@
                 const top = canvas.getBoundingClientRect().top;
                 stableFrames = Math.abs(top - lastTop) < 0.5 ? stableFrames + 1 : 0;
                 lastTop = top;
-                if ((stableFrames >= 3 && performance.now() - settleStart >= 250) || performance.now() - settleStart >= maxWait) { // 검색 창이 닫히는 걸 잠깐 보여 준 뒤에 시작
+                if ((stableFrames >= 3 && performance.now() - settleStart >= 120) || performance.now() - settleStart >= maxWait) { // 검색 창이 닫히는 걸 잠깐 보여 준 뒤에 시작
                     startSearchFlyAnimation(activeData, activeZone);
                     return;
                 }
@@ -4645,7 +4645,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.7';
+    const APP_VERSION = '베타 2026.10.17.8';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
