@@ -2706,6 +2706,26 @@
         for (let i = 0; i < n; i++) if (m[i] > t) { o[i * 4] = r; o[i * 4 + 1] = gg; o[i * 4 + 2] = bb; o[i * 4 + 3] = Math.min(255, 110 + (m[i] - t) / t * 260); }
         x.putImageData(out, 0, 0); return c;
     }
+    // 검색 연출용: 엣지에 빛 번짐까지 미리 구워 둔 그림 (매 프레임 사진 전체에 shadowBlur를 걸면 폰에서 끊겼다). 사진이 바뀌면 다시
+    function ensureNeonEdges(data) {
+        if (!data || !data.img || !data.img.width || !data.canvas) return null;
+        if (data._neonEdges && data._neonEdgesSrc === data.img.src) return data._neonEdges;
+        data._neonEdges = null; data._neonEdgesGlow = null; data._neonEdgesSrc = data.img.src;
+        try {
+            const e = neonEdgeImage(data.img), W = data.canvas.width, H = data.canvas.height, k = displayScale(data.canvas);
+            const g = document.createElement('canvas'); g.width = W; g.height = H;
+            const gx = g.getContext('2d'); gx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; gx.shadowBlur = 5 * k; gx.drawImage(e, 0, 0, W, H);
+            data._neonEdges = e; data._neonEdgesGlow = g;
+        } catch (err) {}
+        return data._neonEdges;
+    }
+    // 화면이 한가할 때 미리 계산해 둔다 (검색을 누른 순간 계산하면 첫 프레임이 멈칫했다)
+    function warmNeonEdges(data) {
+        if (!data || data._neonWarm === (data.img && data.img.src)) return;
+        data._neonWarm = data.img && data.img.src;
+        const run = () => ensureNeonEdges(data);
+        if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 3000 }); else setTimeout(run, 600);
+    }
     function startAiScan(data) {
         const stage = data.noteStage, base = data.canvas;
         if (!stage || !base || !base.clientWidth) return null;
@@ -3943,10 +3963,12 @@
     // 🎯 검색 결과 선택 시: 멀리서 날아와 좁혀지며 구역에 안착 → 잠시 깜빡임
     // ────────────────────────────────────────────────────────────
     let searchFlyAnim = null, searchFlyAnimSeq = 0;
+    let searchFlyPending = null; // 검색 결과를 고른 뒤 스크롤이 멈추길 기다리는 중 (그동안 어둡게 덮지 않아 화면이 갑자기 바뀌지 않게)
 
     function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
     function startSearchFlyAnimation(data, zone) {
+        searchFlyPending = null;
         if (!data || !data.canvas || !zone) return;
         const canvas = data.canvas;
         // 목표 구역의 "중심"에 고정한 채로 크기만 줄어드는 순수 줌 방식.
@@ -3956,9 +3978,9 @@
         const targetCx = zone.x + zone.w / 2, targetCy = zone.y + zone.h / 2;
 
         const seq = ++searchFlyAnimSeq;
-        if (!data._neonEdges && data.img) { try { data._neonEdges = neonEdgeImage(data.img); } catch (e) { data._neonEdges = null; } } // 네온 엣지는 사진마다 한 번만 계산
+        ensureNeonEdges(data); // 보통은 미리 계산돼 있다 (warmNeonEdges)
         searchFlyAnim = {
-            seq, dataId: data.id, zone, edges: data._neonEdges,
+            seq, dataId: data.id, zone, edges: data._neonEdgesGlow,
             from: { x: targetCx - fromW / 2, y: targetCy - fromH / 2, w: fromW, h: fromH },
             to: { x: zone.x, y: zone.y, w: zone.w, h: zone.h },
             startTime: performance.now(),
@@ -3974,7 +3996,7 @@
         if (!searchFlyAnim || searchFlyAnim.seq !== seq) return; // 새 애니메이션이 시작됐으면 이전 루프는 스스로 종료
         const data = imageList.find(d => d.id === searchFlyAnim.dataId);
         if (!data) { searchFlyAnim = null; return; }
-        render(data);
+        renderFlyFrame(data);
 
         const anim = searchFlyAnim, now = performance.now();
         if (anim.blinkStart === null) {
@@ -3994,6 +4016,22 @@
         requestAnimationFrame(() => tickSearchFlyAnim(seq));
     }
 
+    // 연출 프레임: render()가 그려 둔 밑그림(사진·구역)을 그대로 깔고 연출만 덧그린다 (매 프레임 구역 네온·쪽지·DOM을 다시 하지 않게).
+    // 다른 동작으로 render()가 불리면 밑그림도 새로 뜬다
+    function renderFlyFrame(data) {
+        const base = data._flyBase, anim = searchFlyAnim;
+        if (!base || base.seq !== anim.seq || base.cv.width !== data.canvas.width || base.cv.height !== data.canvas.height) { render(data); return; }
+        const { ctx, canvas } = data;
+        ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(base.cv, 0, 0);
+        drawSearchFlyOverlay(ctx, anim, canvas, performance.now());
+    }
+    function snapFlyBase(data, seq) {
+        let b = data._flyBase;
+        if (!b) { b = data._flyBase = { cv: document.createElement('canvas'), seq: 0 }; }
+        if (b.cv.width !== data.canvas.width || b.cv.height !== data.canvas.height) { b.cv.width = data.canvas.width; b.cv.height = data.canvas.height; }
+        const x = b.cv.getContext('2d'); x.clearRect(0, 0, b.cv.width, b.cv.height); x.drawImage(data.canvas, 0, 0); b.seq = seq;
+    }
+
     // 깜빡임 구간에서 지금이 "켜짐" 차례인지 (깜빡임 전·후에는 null)
     function searchBlinkOn(anim, now) {
         if (!anim || anim.blinkStart === null || anim.done) return null;
@@ -4011,15 +4049,17 @@
             ctx.fillStyle = `rgba(4,8,22,${dim})`; ctx.fill('evenodd');
             if (anim.edges && edgeA > 0) {
                 ctx.clip('evenodd'); ctx.globalAlpha = edgeA;
-                ctx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 5 * k;
-                ctx.drawImage(anim.edges, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(anim.edges, 0, 0, canvas.width, canvas.height); // 빛 번짐은 미리 구워 둠 (ensureNeonEdges)
             }
             ctx.restore();
         };
+        // 빛 번짐은 shadowBlur 대신 굵고 옅은 선을 겹쳐 흉내 낸다 (매 프레임 번짐 계산이 폰에서 끊김의 원인)
         const glowRect = (x, y, w, h, blur, width) => {
             ctx.save();
-            ctx.shadowColor = NEON_ZONE_GLOW; ctx.shadowBlur = blur; ctx.lineWidth = width; ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(x, y, w, h);
-            ctx.shadowBlur = blur * 0.3; ctx.lineWidth = Math.max(1, width * 0.4); ctx.strokeStyle = '#fff3fd'; ctx.strokeRect(x, y, w, h);
+            ctx.strokeStyle = 'rgb(255,90,217)';
+            [[1.1, 0.1], [0.65, 0.16], [0.3, 0.3]].forEach(([f, a]) => { ctx.globalAlpha = a; ctx.lineWidth = width + blur * f; ctx.strokeRect(x, y, w, h); });
+            ctx.globalAlpha = 1; ctx.lineWidth = width; ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(x, y, w, h);
+            ctx.lineWidth = Math.max(1, width * 0.4); ctx.strokeStyle = '#fff3fd'; ctx.strokeRect(x, y, w, h);
             ctx.restore();
         };
         if (anim.blinkStart === null) {
@@ -4027,23 +4067,24 @@
             const t = Math.min(1, (now - anim.startTime) / anim.flyDuration), e = easeOutCubic(t);
             const x = anim.from.x + (to.x - anim.from.x) * e, y = anim.from.y + (to.y - anim.from.y) * e;
             const w = anim.from.w + (to.w - anim.from.w) * e, h = anim.from.h + (to.h - anim.from.h) * e;
-            outside(x, y, w, h, 0.25 + 0.45 * e, 0.3 + 0.5 * e);
+            outside(x, y, w, h, 0.85 * e, 0.8 * e); // 0에서 서서히 (화면이 한 번에 어두워지지 않게)
             glowRect(x, y, w, h, 16 * k, 3 * k);
         } else if (anim.done) {
             glowRect(to.x, to.y, to.w, to.h, 12 * k, 2.5 * k); // 끝나면 네온 테두리로 계속 남는다
         } else {
             const el = now - anim.blinkStart, total = anim.maxBlinks * 2 * anim.blinkInterval;
             const lift = Math.max(0, 1 - el / 500); // 안착 직후 진한 막이 평소 스포트라이트 밝기로 걷힌다
-            if (lift > 0) outside(to.x, to.y, to.w, to.h, 0.35 * lift, 0.5 * lift);
+            outside(to.x, to.y, to.w, to.h, 0.6 + 0.25 * lift, 0.3 + 0.5 * lift); // 안착 직후 진한 막이 평소 스포트라이트 밝기(0.6)로 걷힌다
             const pulse = 0.5 + 0.5 * Math.sin(el / 120);
             // 레이더 고리: 찾은 칸 가운데서 퍼져 나간다
             const ringEvery = 650, life = ringEvery * 1.6, maxR = Math.max(to.w, to.h) * 0.9 + 30 * k;
             for (let r0 = 0; r0 <= Math.min(el, total - life); r0 += ringEvery) {
                 const age = el - r0; if (age > life) continue;
                 const p = age / life, r = 8 * k + maxR * easeOutCubic(p);
-                ctx.save(); ctx.globalAlpha = (1 - p) * 0.85;
-                ctx.strokeStyle = `rgb(${NEON_EDGE_RGB})`; ctx.lineWidth = 2 * k; ctx.shadowColor = `rgba(${NEON_EDGE_RGB},1)`; ctx.shadowBlur = 10 * k;
-                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+                ctx.save(); ctx.strokeStyle = `rgb(${NEON_EDGE_RGB})`;
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.globalAlpha = (1 - p) * 0.22; ctx.lineWidth = 9 * k; ctx.stroke(); // 번짐 (선 겹치기)
+                ctx.globalAlpha = (1 - p) * 0.85; ctx.lineWidth = 2 * k; ctx.stroke(); ctx.restore();
             }
             ctx.save(); ctx.fillStyle = `rgba(255,90,217,${0.06 + 0.12 * pulse})`; ctx.fillRect(to.x, to.y, to.w, to.h); ctx.restore();
             glowRect(to.x, to.y, to.w, to.h, (10 + 18 * pulse) * k, (2.5 + 1.5 * pulse) * k);
@@ -4071,16 +4112,18 @@
             strip.querySelector('.draw-strip-text').textContent = data.drawArmed ? '사진 위를 끌어서 구역을 그려요' : '왼쪽 아래 [구역 그리기]를 누르고 사진 위를 끌어요';
         }
         if (!isEditMode && data.drawArmed) data.drawArmed = false;
-        if (data.drawTool) {
+        if (data.drawTool && data.drawTool.dataset.on !== String(!!data.drawArmed)) { // render()마다 불려서 바뀔 때만 고친다 (검색 연출 중 매 프레임 DOM을 다시 만들었다)
+            data.drawTool.dataset.on = String(!!data.drawArmed);
             data.drawTool.classList.toggle('is-on', !!data.drawArmed);
             data.drawTool.innerHTML = data.drawArmed ? '<i class="ti ti-x"></i> 그리는 중 · 취소' : '<i class="ti ti-plus"></i> 구역 그리기';
         }
         if (data.zoomBox) data.zoomBox.classList.toggle('draw-armed', !!data.drawArmed);
     }
 
+    function setText(el, t) { if (el.textContent !== t) el.textContent = t; } // 같은 글자면 건드리지 않는다 (DOM 다시 그리기 줄이기)
     function render(data, bounce = 0) {
         if (!data || !data.ctx) return; const { ctx, canvas, img, zones } = data; ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (img && img.src) { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); } else {
+        if (img && img.src) { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); if (img.width && data.id !== 'dummy_root') warmNeonEdges(data); } else {
             ctx.fillStyle = themeColors.bg; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#e0dbd0'; ctx.lineWidth = 1;
             const boxX = 20, boxY = 20, boxW = 760, boxH = 410; ctx.beginPath(); drawSafeRoundRect(ctx, boxX, boxY, boxW, boxH, 8); ctx.fill(); ctx.stroke();
             ctx.fillStyle = '#1a1a18'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
@@ -4093,7 +4136,7 @@
         }
         syncFirstZone(data);
         const countEl = document.getElementById('count-' + data.id);
-        if (countEl) countEl.textContent = zones.length ? `· 구역 ${zones.length} · 물건 ${zones.reduce((n, z) => n + z.items.length, 0)}` : '· 아직 없음';
+        if (countEl) setText(countEl, zones.length ? `· 구역 ${zones.length} · 물건 ${zones.reduce((n, z) => n + z.items.length, 0)}` : '· 아직 없음');
 
         if (isDrawingNewZone && activeData === data) {
             ctx.strokeStyle = themeColors.accent2; ctx.fillStyle = `rgba(${themeColors.accentRgb}, 0.12)`; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
@@ -4147,18 +4190,20 @@
         if (!cleanView && activeZone && zones.includes(activeZone)) drawEditZoneInfo(ctx, activeZone, true);
 
         // 찾은(누른) 칸 스포트라이트: 나머지를 어둡게 덮고 그 칸만 밝게 둔 뒤, 테두리와 번호를 위에 다시 그린다
-        if (cleanView && !pickMode && showSearchArrow && activeZone && zones.includes(activeZone)) {
+        const flyOwnsDim = (flyAnim && !flyAnim.done) || (searchFlyPending && searchFlyPending.dataId === data.id); // 연출이 어둡게 덮기를 맡는 중
+        if (cleanView && !pickMode && showSearchArrow && activeZone && zones.includes(activeZone) && !flyOwnsDim) {
             const z = activeZone, k = displayScale(canvas);
             const hideBox = false; // 찾은 칸은 깜빡여 사라지지 않고 네온으로 맥박치듯 빛난다 (drawSearchFlyOverlay)
             ctx.save();
             ctx.beginPath(); ctx.rect(0, 0, canvas.width, canvas.height); ctx.rect(z.x, z.y, z.w, z.h);
             ctx.fillStyle = 'rgba(8, 10, 24, 0.6)'; ctx.fill('evenodd');
-            if (data._neonEdges) { ctx.clip('evenodd'); ctx.globalAlpha = 0.3; ctx.drawImage(data._neonEdges, 0, 0, canvas.width, canvas.height); } // 어두운 바깥에 물체 테두리가 은은히
+            if (data._neonEdgesGlow) { ctx.clip('evenodd'); ctx.globalAlpha = 0.3; ctx.drawImage(data._neonEdgesGlow, 0, 0, canvas.width, canvas.height); } // 어두운 바깥에 물체 테두리가 은은히
             ctx.restore();
             if (!hideBox) strokeNeon(ctx, z, k * 1.8);
         }
         renderZoneNotes(data, cleanView);
 
+        if (flyAnim && !flyAnim.done) snapFlyBase(data, flyAnim.seq); // 연출 프레임은 이 밑그림 위에 연출만 다시 그린다 (renderFlyFrame)
         if (flyAnim) { drawSearchFlyOverlay(ctx, flyAnim, canvas, frameNow); }
 
         if (holdingItem && activeData === data) {
@@ -4356,6 +4401,7 @@
         deactivateHeroSearch(); recordFind();
         activeData = imageList.find(d => d.id == dataId); activeZone = activeData.zones[index];
         showSearchArrow = true; showPhoto(dataId);
+        searchFlyPending = activeData ? { dataId: activeData.id } : null; // 연출이 시작될 때까지 어둡게 덮지 않는다
         imageList.forEach(data => render(data));
 
         // 사진이 여러 장이라 스크롤이 필요한 경우, 스크롤이 실제로 멈춘 뒤에
@@ -4579,7 +4625,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.4';
+    const APP_VERSION = '베타 2026.10.17.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5502,7 +5548,7 @@
 
     function enterPickMode({ title, excludeZone = null, onPick, onRemove = null }) {
         pickMode = { title, excludeZone, onPick, onRemove };
-        searchFlyAnim = null; showSearchArrow = false; activeZone = null;
+        searchFlyAnim = null; searchFlyPending = null; showSearchArrow = false; activeZone = null;
         document.getElementById('pickBannerTitle').textContent = title;
         requestAnimationFrame(() => fitLines(document.querySelector('.pick-banner-title'), 2, 12.5));
         document.querySelectorAll('.pick-remove-btn').forEach(b => b.style.display = onRemove ? '' : 'none');
