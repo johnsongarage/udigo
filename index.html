@@ -588,12 +588,12 @@
         .zone-note.narrow .it + .it, .zone-note.narrow .more { margin-top: 3px; padding-top: 3px; border-top: 1px dashed rgba(43,39,22,0.35); }
         .zone-note .more { color: #7a6a1e; font-weight: 500; }
         .zone-note.is-tiny { min-width: 2.8em; padding: 0 5px; font-size: 0.86em; line-height: 1.45; }
-        .zone-note.is-focus { outline: 2.5px solid #c44444; outline-offset: 1px; }
+        .zone-note.is-focus { outline: 2.5px solid #ff6ee0; outline-offset: 1px; box-shadow: 0 0 12px rgba(255, 90, 217, 0.85); } /* 찾은 칸 쪽지도 네온 */
         .note-layer.has-focus .zone-note:not(.is-focus), .note-layer.has-focus .is-empty:not(.is-focus) { opacity: 0.3; }
         /* 칸 번호: 쪽지 왼쪽 위 구석의 동그라미 (빈 칸은 번호만). 칸이 붙어 있어도 어느 칸 번호인지 헷갈리지 않게 동그라미 전체가 칸 안에 들어온다 */
         .zone-num { position: absolute; top: calc(var(--num-off, 6px) * -1); left: calc(var(--num-off, 6px) * -1); min-width: 1.6em; height: 1.6em; padding: 0 0.3em; border-radius: 0.8em; display: inline-flex; align-items: center; justify-content: center; background: #2b2716; color: #fff3a3; font-size: var(--num-fs, 8.5px); font-weight: 800; line-height: 1; text-indent: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         .is-empty .zone-num { position: static; background: rgba(43,39,22,0.62); color: #fff; }
-        .zone-note.is-focus .zone-num, .is-empty.is-focus .zone-num { background: #c44444; color: #fff; }
+        .zone-note.is-focus .zone-num, .is-empty.is-focus .zone-num { background: #d936b8; color: #fff; }
         .zoom-ctl { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; z-index: 2; }
         /* ✏️ 구역 그리기 도구: 고치기 모드에서 사진 왼쪽 아래 (확대 버튼과 반대편). 눌러 켠 동안만 끌기 = 그리기, 아니면 끌기 = 스크롤 */
         .draw-tool { position: absolute; left: 8px; bottom: 8px; z-index: 2; display: none; align-items: center; gap: 4px; height: 40px; padding: 0 14px 0 11px; border: 1.5px solid rgba(255,255,255,0.8); border-radius: 20px; background: rgba(26,26,24,0.72); color: #fff; font: inherit; font-size: 14px; font-weight: 700; box-shadow: 0 3px 10px rgba(0,0,0,0.3); cursor: pointer; }
@@ -3900,8 +3900,9 @@
         const targetCx = zone.x + zone.w / 2, targetCy = zone.y + zone.h / 2;
 
         const seq = ++searchFlyAnimSeq;
+        if (!data._neonEdges && data.img) { try { data._neonEdges = neonEdgeImage(data.img); } catch (e) { data._neonEdges = null; } } // 네온 엣지는 사진마다 한 번만 계산
         searchFlyAnim = {
-            seq, dataId: data.id, zone,
+            seq, dataId: data.id, zone, edges: data._neonEdges,
             from: { x: targetCx - fromW / 2, y: targetCy - fromH / 2, w: fromW, h: fromH },
             to: { x: zone.x, y: zone.y, w: zone.w, h: zone.h },
             startTime: performance.now(),
@@ -3943,47 +3944,53 @@
         return Math.floor((now - anim.blinkStart) / anim.blinkInterval) % 2 === 0;
     }
 
+    // 🔍 검색 연출 (네온): 어두워진 사진에 물체 테두리가 떠오른 채 스포트라이트가 찾은 칸으로 좁혀 들고,
+    // 안착하면 칸이 맥박치듯 빛나고 레이더 고리가 퍼진다 → 끝나면 네온 테두리로 남는다
     function drawSearchFlyOverlay(ctx, anim, canvas, now) {
+        const k = displayScale(canvas), to = anim.to;
+        const cx = to.x + to.w / 2, cy = to.y + to.h / 2;
+        const outside = (x, y, w, h, dim, edgeA) => { // 스포트라이트 바깥만 어둡게 + 네온 엣지
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, 0, canvas.width, canvas.height); ctx.rect(x, y, w, h);
+            ctx.fillStyle = `rgba(4,8,22,${dim})`; ctx.fill('evenodd');
+            if (anim.edges && edgeA > 0) {
+                ctx.clip('evenodd'); ctx.globalAlpha = edgeA;
+                ctx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 5 * k;
+                ctx.drawImage(anim.edges, 0, 0, canvas.width, canvas.height);
+            }
+            ctx.restore();
+        };
+        const glowRect = (x, y, w, h, blur, width) => {
+            ctx.save();
+            ctx.shadowColor = NEON_ZONE_GLOW; ctx.shadowBlur = blur; ctx.lineWidth = width; ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(x, y, w, h);
+            ctx.shadowBlur = blur * 0.3; ctx.lineWidth = Math.max(1, width * 0.4); ctx.strokeStyle = '#fff3fd'; ctx.strokeRect(x, y, w, h);
+            ctx.restore();
+        };
         if (anim.blinkStart === null) {
             // 날아와서 좁혀지는 구간 (ease-out)
-            const t = Math.min(1, (now - anim.startTime) / anim.flyDuration);
-            const e = easeOutCubic(t);
-            const x = anim.from.x + (anim.to.x - anim.from.x) * e;
-            const y = anim.from.y + (anim.to.y - anim.from.y) * e;
-            const w = anim.from.w + (anim.to.w - anim.from.w) * e;
-            const h = anim.from.h + (anim.to.h - anim.from.h) * e;
-
-            // 사각형이 지나간(좁혀지며 벗어난) 자리는 배경색으로 덮어서
-            // 스포트라이트가 좁혀지듯 결과 구역만 남기고 강조한다.
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, canvas.width, canvas.height);
-            ctx.rect(x, y, w, h);
-            ctx.fillStyle = themeColors.bg;
-            ctx.fill('evenodd');
-            ctx.restore();
-
-            ctx.save();
-            ctx.strokeStyle = `rgba(196, 68, 68, ${0.3 + 0.7 * e})`;
-            ctx.lineWidth = 4;
-            ctx.strokeRect(x, y, w, h);
-            ctx.restore();
+            const t = Math.min(1, (now - anim.startTime) / anim.flyDuration), e = easeOutCubic(t);
+            const x = anim.from.x + (to.x - anim.from.x) * e, y = anim.from.y + (to.y - anim.from.y) * e;
+            const w = anim.from.w + (to.w - anim.from.w) * e, h = anim.from.h + (to.h - anim.from.h) * e;
+            outside(x, y, w, h, 0.25 + 0.45 * e, 0.3 + 0.5 * e);
+            glowRect(x, y, w, h, 16 * k, 3 * k);
         } else if (anim.done) {
-            // 깜빡임이 끝난 뒤에는 테두리를 계속 켜둔 채로 유지한다.
-            ctx.save();
-            ctx.strokeStyle = '#c44444';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(anim.to.x, anim.to.y, anim.to.w, anim.to.h);
-            ctx.restore();
+            glowRect(to.x, to.y, to.w, to.h, 12 * k, 2.5 * k); // 끝나면 네온 테두리로 계속 남는다
         } else {
-            // 깜빡이는 구간: 스포트라이트를 풀고 전체 이미지를 보여주면서 테두리 색을 켰다 껐다 반복한다.
-            if (searchBlinkOn(anim, now)) {
-                ctx.save();
-                ctx.strokeStyle = '#c44444';
-                ctx.lineWidth = 4;
-                ctx.strokeRect(anim.to.x, anim.to.y, anim.to.w, anim.to.h);
-                ctx.restore();
+            const el = now - anim.blinkStart, total = anim.maxBlinks * 2 * anim.blinkInterval;
+            const lift = Math.max(0, 1 - el / 500); // 안착 직후 진한 막이 평소 스포트라이트 밝기로 걷힌다
+            if (lift > 0) outside(to.x, to.y, to.w, to.h, 0.35 * lift, 0.5 * lift);
+            const pulse = 0.5 + 0.5 * Math.sin(el / 120);
+            // 레이더 고리: 찾은 칸 가운데서 퍼져 나간다
+            const ringEvery = 650, life = ringEvery * 1.6, maxR = Math.max(to.w, to.h) * 0.9 + 30 * k;
+            for (let r0 = 0; r0 <= Math.min(el, total - life); r0 += ringEvery) {
+                const age = el - r0; if (age > life) continue;
+                const p = age / life, r = 8 * k + maxR * easeOutCubic(p);
+                ctx.save(); ctx.globalAlpha = (1 - p) * 0.85;
+                ctx.strokeStyle = `rgb(${NEON_EDGE_RGB})`; ctx.lineWidth = 2 * k; ctx.shadowColor = `rgba(${NEON_EDGE_RGB},1)`; ctx.shadowBlur = 10 * k;
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
             }
+            ctx.save(); ctx.fillStyle = `rgba(255,90,217,${0.06 + 0.12 * pulse})`; ctx.fillRect(to.x, to.y, to.w, to.h); ctx.restore();
+            glowRect(to.x, to.y, to.w, to.h, (10 + 18 * pulse) * k, (2.5 + 1.5 * pulse) * k);
         }
     }
 
@@ -4048,7 +4055,7 @@
         const cleanView = !isEditMode && data.id !== 'dummy_root';
         (data.aiScanning ? [] : zones).forEach((z, zi) => { // AI 연출 중엔 레이더 화면이 하나씩 박으니 밑그림에선 숨긴다
             // 검색 후 깜빡이는 동안에는 기존 빨간 박스도 테두리와 함께 사라졌다 보였다 한다 (끝나면 계속 보임).
-            const hideBox = flyAnim && flyAnim.zone === z && searchBlinkOn(flyAnim, frameNow) === false;
+            const hideBox = false; // 찾은 칸은 깜빡여 사라지지 않고 네온으로 맥박치듯 빛난다 (drawSearchFlyOverlay)
             const isHovered = holdingItem && activeData === data && mousePos.x >= z.x && mousePos.x <= z.x + z.w && mousePos.y >= z.y && mousePos.y <= z.y + z.h;
             if (pickMode && data.id !== 'dummy_root') {
                 // 고르기 모드: 고를 수 있는 구역은 밝게, 현재 위치(제외 구역)는 어둡게
@@ -4056,7 +4063,7 @@
                 else { ctx.fillStyle = `rgba(${themeColors.accentRgb}, 0.3)`; ctx.strokeStyle = themeColors.accent2; ctx.lineWidth = 5; }
             }
             else if (isHovered) { ctx.fillStyle = 'rgba(255, 243, 196, 0.35)'; ctx.strokeStyle = '#c8960a'; ctx.lineWidth = 3; }
-            else if (z === activeZone) { ctx.fillStyle = 'rgba(196, 68, 68, 0.16)'; ctx.strokeStyle = '#c44444'; ctx.lineWidth = Math.max(3, 2.5 * displayScale(canvas)); }
+            else if (z === activeZone) { ctx.fillStyle = 'rgba(255, 90, 217, 0.14)'; ctx.strokeStyle = NEON_ZONE; ctx.lineWidth = Math.max(3, 2.5 * displayScale(canvas)); }
             else if (cleanView) { /* 보기 모드 기본: 아래에서 테두리만 그림 */ }
             else { ctx.fillStyle = `rgba(${themeColors.zoneFillRgb}, ${themeColors.zoneFillAlpha})`; ctx.strokeStyle = themeColors.zoneStroke; ctx.lineWidth = 2; }
             if (!hideBox) {
@@ -4073,12 +4080,12 @@
                     ctx.fillRect(z.x, z.y, z.w, z.h);
                     ctx.lineWidth = Math.max(5, 3.2 * k); ctx.strokeStyle = 'rgba(16,0,28,0.5)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
                     strokeNeon(ctx, z, k);
-                } else { ctx.fillRect(z.x, z.y, z.w, z.h); ctx.strokeRect(z.x, z.y, z.w, z.h); }
+                } else { ctx.fillRect(z.x, z.y, z.w, z.h); ctx.strokeRect(z.x, z.y, z.w, z.h); if (z === activeZone && !isHovered && !pickMode) strokeNeon(ctx, z, displayScale(canvas) * 1.6); }
             }
             if (!cleanView) drawEditZoneInfo(ctx, z, z === activeZone);
             if (isEditMode && z === activeZone) { ctx.fillStyle = 'white'; ctx.strokeStyle = '#c44444'; ctx.lineWidth = 2; const corners = [{ x: z.x, y: z.y }, { x: z.x + z.w, y: z.y }, { x: z.x, y: z.y + z.h }, { x: z.x + z.w, y: z.y + z.h }]; const hh = handleDrawHalf(canvas); corners.forEach(c => { ctx.fillRect(c.x - hh, c.y - hh, hh * 2, hh * 2); ctx.strokeRect(c.x - hh, c.y - hh, hh * 2, hh * 2); }); }
             if (cleanView) { z.bubbleBox = null; z.bubbleMeta = null; }
-            if (z === activeZone && showSearchArrow && !cleanView) { const k = displayScale(canvas); ctx.fillStyle = '#c44444'; ctx.font = `bold ${Math.round(Math.max(32, 22 * k))}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('▼', z.x + z.w / 2, z.y - Math.max(20, 8 * k) - bounce); }
+            if (z === activeZone && showSearchArrow && !cleanView) { const k = displayScale(canvas); ctx.fillStyle = NEON_ZONE; ctx.font = `bold ${Math.round(Math.max(32, 22 * k))}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('▼', z.x + z.w / 2, z.y - Math.max(20, 8 * k) - bounce); }
         });
 
         if (!cleanView && activeZone && zones.includes(activeZone)) drawEditZoneInfo(ctx, activeZone, true);
@@ -4086,12 +4093,13 @@
         // 찾은(누른) 칸 스포트라이트: 나머지를 어둡게 덮고 그 칸만 밝게 둔 뒤, 테두리와 번호를 위에 다시 그린다
         if (cleanView && !pickMode && showSearchArrow && activeZone && zones.includes(activeZone)) {
             const z = activeZone, k = displayScale(canvas);
-            const hideBox = flyAnim && flyAnim.zone === z && searchBlinkOn(flyAnim, frameNow) === false;
+            const hideBox = false; // 찾은 칸은 깜빡여 사라지지 않고 네온으로 맥박치듯 빛난다 (drawSearchFlyOverlay)
             ctx.save();
             ctx.beginPath(); ctx.rect(0, 0, canvas.width, canvas.height); ctx.rect(z.x, z.y, z.w, z.h);
-            ctx.fillStyle = 'rgba(15, 18, 24, 0.55)'; ctx.fill('evenodd');
-            if (!hideBox) { ctx.lineWidth = Math.max(3, 2.5 * k); ctx.strokeStyle = '#c44444'; ctx.strokeRect(z.x, z.y, z.w, z.h); }
+            ctx.fillStyle = 'rgba(8, 10, 24, 0.6)'; ctx.fill('evenodd');
+            if (data._neonEdges) { ctx.clip('evenodd'); ctx.globalAlpha = 0.3; ctx.drawImage(data._neonEdges, 0, 0, canvas.width, canvas.height); } // 어두운 바깥에 물체 테두리가 은은히
             ctx.restore();
+            if (!hideBox) strokeNeon(ctx, z, k * 1.8);
         }
         renderZoneNotes(data, cleanView);
 
@@ -4515,7 +4523,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.1';
+    const APP_VERSION = '베타 2026.10.17.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
