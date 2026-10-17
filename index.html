@@ -3696,10 +3696,17 @@
         const s = stageW / data.canvas.width, ui = bubbleFontSize / (isMobileDevice() ? 22 : 16);
         const fs = Math.round(12.5 * ui * 10) / 10, lineH = Math.round(fs * 1.3), padY = 3;
         const focus = showSearchArrow && activeZone && data.zones.includes(activeZone) ? activeZone : null;
-        const key = [stageW, fs, focus ? data.zones.indexOf(focus) : -1, JSON.stringify(data.zones.map(z => [z.x, z.y, z.w, z.h, z.items.map(i => i.name)]))].join('|');
-        if (layer.dataset.key === key) return;
-        layer.dataset.key = key;
+        const fi = focus ? data.zones.indexOf(focus) : -1;
+        const key = [stageW, fs, JSON.stringify(data.zones.map(z => [z.x, z.y, z.w, z.h, z.items.map(i => i.name)]))].join('|');
         layer.classList.toggle('has-focus', !!focus);
+        if (layer.dataset.key === key) { // 쪽지는 그대로, 고른 칸 표시만 바꾼다 (검색할 때마다 쪽지를 다시 만들고 재느라 멈칫했다)
+            if (layer.dataset.focus !== String(fi)) {
+                layer.dataset.focus = String(fi);
+                [...layer.children].forEach((slot, zi) => { const el = slot.classList.contains('is-empty') ? slot : slot.querySelector('.zone-note'); if (el) el.classList.toggle('is-focus', zi === fi); });
+            }
+            return;
+        }
+        layer.dataset.key = key; layer.dataset.focus = String(fi);
         layer.style.setProperty('--note-fs', fs + 'px'); layer.style.setProperty('--note-lh', lineH + 'px');
         // 칸 번호 동그라미: PC는 화면이 넓어 쪽지 글자에 비해 번호가 너무 작아 보여 더 크게. 쪽지 모서리에 걸치되 대부분은 칸 안에 들어와 옆 칸 번호와 헷갈리지 않게
         const numFs = Math.round(fs * (isMobileDevice() ? 0.72 : 1) * 10) / 10, numD = numFs * 1.6, numOff = Math.round(numD * 0.6), slotPad = numOff - Math.round(numD * 0.15); // 동그라미가 칸 모서리에 살짝(지름의 15%) 걸치게
@@ -3989,6 +3996,7 @@
             maxBlinks: 5,       // 총 깜빡임 5회(켜짐+꺼짐) 후 정지 — 배터리 고려해 무한 반복은 지양
             blinkInterval: 260
         };
+        if (!data.aiScanning) snapFlyBase(data, seq); // 지금 캔버스가 곧 밑그림 (어둡게 덮기 전 상태) → 첫 프레임에 다시 그리지 않는다
         requestAnimationFrame(() => tickSearchFlyAnim(seq));
     }
 
@@ -4152,6 +4160,7 @@
 
         // 보기 모드: 캔버스엔 테두리만, 물건 이름은 위에 얹은 노란 쪽지(renderZoneNotes). 편집 모드: 채우기·가운데 이름·말풍선(끌어서 옮기기용)
         const cleanView = !isEditMode && data.id !== 'dummy_root';
+        data._drawnFocus = !!activeZone && zones.includes(activeZone); // 고른 칸이 이 사진에 그려졌는지 (selectZone이 다시 그릴 사진만 고를 때)
         (data.aiScanning ? [] : zones).forEach((z, zi) => { // AI 연출 중엔 레이더 화면이 하나씩 박으니 밑그림에선 숨긴다
             // 검색 후 깜빡이는 동안에는 기존 빨간 박스도 테두리와 함께 사라졌다 보였다 한다 (끝나면 계속 보임).
             const hideBox = false; // 찾은 칸은 깜빡여 사라지지 않고 네온으로 맥박치듯 빛난다 (drawSearchFlyOverlay)
@@ -4402,7 +4411,9 @@
         activeData = imageList.find(d => d.id == dataId); activeZone = activeData.zones[index];
         showSearchArrow = true; showPhoto(dataId);
         searchFlyPending = activeData ? { dataId: activeData.id } : null; // 연출이 시작될 때까지 어둡게 덮지 않는다
-        imageList.forEach(data => render(data));
+        if (searchFlyAnim && searchFlyAnim.done) searchFlyAnim = null; // 같은 칸을 다시 찾아도 지난 네온 테두리가 밑그림에 남지 않게
+        const redraw = () => imageList.forEach(data => { if (data === activeData || data._drawnFocus) render(data); }); // 고른 사진과, 전에 고른 칸이 그려진 사진만 (사진이 많으면 누르는 순간 멈칫했다)
+        requestAnimationFrame(redraw); // 검색 창이 닫히는 화면을 먼저 보여 주고 다음 프레임에 그린다 (한 프레임에 몰려 멈칫했다)
 
         // 사진이 여러 장이라 스크롤이 필요한 경우, 스크롤이 실제로 멈춘 뒤에
         // 애니메이션을 시작해야 "날아오는" 연출이 화면이 움직이는 도중에 겹쳐 보이지 않는다.
@@ -4625,7 +4636,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.5';
+    const APP_VERSION = '베타 2026.10.17.6';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
