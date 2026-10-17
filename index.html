@@ -724,9 +724,15 @@
         #printModal { z-index: 1090; max-width: 520px; padding: 20px; flex-direction: column; overflow: hidden; max-height: 85vh; max-height: 88dvh; }
         #printModal > * { flex: none; }
         #printModal .print-preview-wrap { flex: 1 1 auto; min-height: 120px; position: relative; display: flex; }
-        #printModal .print-pages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+        #printModal .print-pages { --pz: 1; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+        #printModal .print-pages canvas { width: calc(var(--pz) * 100%); max-width: none; margin: 0 auto; } /* [−]/[+] 10%씩 (--pz) */
         .print-pages canvas { cursor: zoom-in; }
         .print-zoom-btn { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 0; border-radius: 16px; background: rgba(26,26,24,0.72); color: #fff; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .print-zoom-ctl { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; height: 32px; border-radius: 16px; background: rgba(26,26,24,0.72); color: #fff; overflow: hidden; }
+        .print-zoom-ctl button { display: inline-flex; align-items: center; justify-content: center; height: 32px; min-width: 34px; padding: 0 6px; border: 0; background: none; color: inherit; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .print-zoom-ctl #printZoomOut, .print-zoom-ctl #printZoomIn { font-size: 19px; font-weight: 600; line-height: 1; } /* 아이콘 글꼴이 늦게 와도 보이게 글자로 */
+        .print-zoom-ctl button:disabled { opacity: 0.35; cursor: default; }
+        .print-zoom-ctl .pz-val { min-width: 46px; padding: 0 2px; border-left: 1px solid rgba(255,255,255,0.25); border-right: 1px solid rgba(255,255,255,0.25); border-radius: 0; font-variant-numeric: tabular-nums; }
         .print-page-badge { position: absolute; bottom: 8px; right: 8px; padding: 3px 9px; border-radius: 12px; background: rgba(26,26,24,0.72); color: #fff; font-size: 12px; font-weight: 700; pointer-events: none; }
         #printModal .settings-head { margin-bottom: 12px; gap: 10px; }
         /* 옵션 + 미리보기 묶음. 좁은 화면: 위아래(옵션은 한 줄 요약으로 접힘) · 넓은 화면: 왼쪽 옵션, 오른쪽 미리보기 */
@@ -744,7 +750,7 @@
             #printModal .print-summary, #printModal #printOptRow { display: none; } /* 요약·옵션 접기 버튼 대신 옵션을 바로 보인다 */
             #printModal .print-opt-panel { margin-top: 0; }
             #printModal .print-sub { margin-left: 0; white-space: normal; }
-            #printModal .print-pages canvas { width: auto; max-width: 100%; max-height: calc(92dvh - 190px); margin: 0 auto; } /* 한 쪽이 통째로 보이게 (폭에 맞추면 A4가 길어 반쪽만 보였다) */
+            #printModal .print-pages canvas { width: calc(var(--pz) * min(100%, (92dvh - 190px) * 0.7071)); margin: 0 auto; } /* A4 세로(210/297) 비율로 높이에 맞춘 폭 × 배율 */ /* 한 쪽이 통째로 보이게 (폭에 맞추면 A4가 길어 반쪽만 보였다) */
         }
         /* 📦 재고 세기: 기본으로 켜짐 (설정에서 끌 수 있음). 선반(구역) 순서대로 돌며 − 수량 + 로 세고, 기준보다 모자란 것을 발주 목록으로 */
         #stockBackdrop { display: none; position: fixed; inset: 0; background: rgba(26,26,24,0.45); z-index: 1089; }
@@ -2142,6 +2148,11 @@
     </div><!-- /print-controls -->
     <div id="printPreviewWrap" class="print-preview-wrap">
         <div id="printPages" class="print-pages" onclick="if (event.target.tagName === 'CANVAS') openPrintViewer(event.target)"></div>
+        <div class="print-zoom-ctl" role="group" aria-label="미리보기 크기">
+            <button type="button" id="printZoomOut" onclick="stepPrintZoom(-1)" aria-label="10% 작게">−</button>
+            <button type="button" id="printZoomVal" class="pz-val" onclick="setPrintZoom(1)" title="원래 크기로">100%</button>
+            <button type="button" id="printZoomIn" onclick="stepPrintZoom(1)" aria-label="10% 크게">+</button>
+        </div>
         <button type="button" class="print-zoom-btn" onclick="openPrintViewer()"><i class="ti ti-arrows-maximize"></i> 크게 보기</button>
         <span id="printPageBadge" class="print-page-badge" hidden></span>
     </div>
@@ -4568,7 +4579,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.3';
+    const APP_VERSION = '베타 2026.10.17.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6262,7 +6273,7 @@
         const photos = imageList.filter(d => d.id !== 'dummy_root' && d.canvas);
         if (!photos.length) { alert("먼저 사진을 등록해주세요."); return; }
         const data = photos.find(d => d.id == (dataId || currentPhotoId)) || photos[0];
-        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
+        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; setPrintZoom(1); // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
         renderPrintPreview(photos.length > 1 && !dataId ? 'all' : 'photo');
         document.getElementById('printModal').style.display = 'flex';
         // 이미 열려 있는데 또 열면(인쇄 버튼 두 번 등) 잠금이 두 번 걸리고 닫을 때 한 번만 풀려 스크롤이 막힌 채 남았다
@@ -6401,6 +6412,20 @@
         input.hidden = true; btn.hidden = false;
         renderPrintPreview(); // 머리글이 바뀌었으면 미리보기도 (같으면 기억해 둔 것을 바로 쓴다)
     }
+    // 미리보기 크기 [−] 100% [+]: 10%씩 50%~300%. 가운데 보던 자리가 그대로 있게 스크롤을 맞춘다 (가운데 숫자를 누르면 100%)
+    const PRINT_ZMIN = 0.5, PRINT_ZMAX = 3;
+    let printZoom = 1;
+    function setPrintZoom(z) {
+        const box = document.getElementById('printPages');
+        z = Math.round(Math.min(PRINT_ZMAX, Math.max(PRINT_ZMIN, z)) * 10) / 10;
+        const fx = (box.scrollLeft + box.clientWidth / 2) / Math.max(1, box.scrollWidth), fy = (box.scrollTop + box.clientHeight / 2) / Math.max(1, box.scrollHeight);
+        printZoom = z; box.style.setProperty('--pz', z);
+        box.scrollLeft = fx * box.scrollWidth - box.clientWidth / 2; box.scrollTop = fy * box.scrollHeight - box.clientHeight / 2;
+        document.getElementById('printZoomVal').textContent = Math.round(z * 100) + '%';
+        document.getElementById('printZoomOut').disabled = z <= PRINT_ZMIN; document.getElementById('printZoomIn').disabled = z >= PRINT_ZMAX;
+        syncPrintPageBadge();
+    }
+    function stepPrintZoom(d) { setPrintZoom(printZoom + d * 0.1); }
     // 크게 보기: 미리보기 쪽들을 화면 가득한 창으로 옮겨 보여 주고, 닫으면 제자리로
     function openPrintViewer(target) {
         const pages = document.getElementById('printPages'), body = document.getElementById('printViewerBody');
