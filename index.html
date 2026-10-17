@@ -575,7 +575,7 @@
         @media (prefers-reduced-motion: reduce) { .draw-demo::before { animation: none; width: 34px; height: 22px; } .draw-demo::after { animation: none; left: 34px; top: 22px; } }
         .zone-note-slot { position: absolute; display: flex; align-items: flex-start; padding: var(--slot-pad, 5px) 3px 2px var(--slot-pad, 5px); transition: opacity 0.2s; }
         .zone-note-slot.is-tiny { align-items: center; padding-top: 0; padding-bottom: 0; }
-        .zone-note { position: relative; max-width: 100%; min-width: 0; padding: 3px 6px 3px var(--note-padl, 6px); background: #fff3a3; color: #2b2716; font-weight: 600; font-size: var(--note-fs, 12.5px); line-height: var(--note-lh, 17px); border-radius: 2px 2px 7px 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.28), 0 3px 8px rgba(0,0,0,0.14); transition: opacity 0.2s; }
+        .zone-note { position: relative; max-width: 100%; min-width: 0; padding: 3px 6px 3px var(--note-padl, 6px); background: #fff3a3; color: #2b2716; font-weight: 600; font-size: var(--note-fs, 12.5px); line-height: var(--note-lh, 17px); border-radius: 2px 2px 7px 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.28), 0 3px 8px rgba(0,0,0,0.14); transition: opacity 0.8s ease; }
         .zone-note > div { word-break: keep-all; overflow-wrap: anywhere; }
         .zone-note.one-line > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .zone-note .it { padding-left: 0.7em; text-indent: -0.7em; } /* 줄이 바뀐 긴 이름은 들여 써서 다른 물건처럼 보이지 않게 */
@@ -590,6 +590,7 @@
         .zone-note.is-tiny { min-width: 2.8em; padding: 0 5px; font-size: 0.86em; line-height: 1.45; }
         .zone-note.is-focus { outline: 2.5px solid #ff6ee0; outline-offset: 1px; box-shadow: 0 0 12px rgba(255, 90, 217, 0.85); } /* 찾은 칸 쪽지도 네온 */
         .note-layer.has-focus .zone-note:not(.is-focus), .note-layer.has-focus .is-empty:not(.is-focus) { opacity: 0.3; }
+        .zone-note-slot.is-empty { transition: opacity 0.8s ease; }
         /* 칸 번호: 쪽지 왼쪽 위 구석의 동그라미 (빈 칸은 번호만). 칸이 붙어 있어도 어느 칸 번호인지 헷갈리지 않게 동그라미 전체가 칸 안에 들어온다 */
         .zone-num { position: absolute; top: calc(var(--num-off, 6px) * -1); left: calc(var(--num-off, 6px) * -1); min-width: 1.6em; height: 1.6em; padding: 0 0.3em; border-radius: 0.8em; display: inline-flex; align-items: center; justify-content: center; background: #2b2716; color: #fff3a3; font-size: var(--num-fs, 8.5px); font-weight: 800; line-height: 1; text-indent: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         .is-empty .zone-num { position: static; background: rgba(43,39,22,0.62); color: #fff; }
@@ -3695,10 +3696,13 @@
         const stageW = data.noteStage.clientWidth; if (!stageW) return; // 숨겨진 사진: 보일 때 다시 그린다
         const s = stageW / data.canvas.width, ui = bubbleFontSize / (isMobileDevice() ? 22 : 16);
         const fs = Math.round(12.5 * ui * 10) / 10, lineH = Math.round(fs * 1.3), padY = 3;
-        const focus = showSearchArrow && activeZone && data.zones.includes(activeZone) ? activeZone : null;
+        // 검색 연출: 시작하면 쪽지가 화면과 함께 서서히 흐려지고(has-focus), 칸에 안착하면 찾은 쪽지만 다시 밝아진다(is-focus)
+        const pending = searchFlyPending && searchFlyPending.dataId === data.id;
+        const sel = showSearchArrow && activeZone && data.zones.includes(activeZone) ? activeZone : null;
+        const focus = sel && !searchFlyIntro(data) ? sel : null, dimOthers = !!sel && !pending;
         const fi = focus ? data.zones.indexOf(focus) : -1;
         const key = [stageW, fs, JSON.stringify(data.zones.map(z => [z.x, z.y, z.w, z.h, z.items.map(i => i.name)]))].join('|');
-        layer.classList.toggle('has-focus', !!focus);
+        layer.classList.toggle('has-focus', dimOthers);
         if (layer.dataset.key === key) { // 쪽지는 그대로, 고른 칸 표시만 바꾼다 (검색할 때마다 쪽지를 다시 만들고 재느라 멈칫했다)
             if (layer.dataset.focus !== String(fi)) {
                 layer.dataset.focus = String(fi);
@@ -3991,11 +3995,12 @@
             from: { x: targetCx - fromW / 2, y: targetCy - fromH / 2, w: fromW, h: fromH },
             to: { x: zone.x, y: zone.y, w: zone.w, h: zone.h },
             startTime: performance.now(),
-            flyDuration: 480,
+            flyDuration: 1100, // 서서히 어두워지며 좁혀 든다 (빠르면 화면이 확 바뀌는 느낌이었다)
             blinkStart: null,
-            maxBlinks: 5,       // 총 깜빡임 5회(켜짐+꺼짐) 후 정지 — 배터리 고려해 무한 반복은 지양
-            blinkInterval: 260
+            pulseMs: 230,      // 맥박 한 번 ≈ 1.45초 (2π × 230)
+            holdDuration: 2 * Math.PI * 230 * 2 // 맥박 두 번 뒤 멈춤 — 맥박이 잦아든 자리에서 끝나 끝 테두리로 매끄럽게 이어진다
         };
+        renderZoneNotes(data, !isEditMode && data.id !== 'dummy_root'); // 쪽지도 화면과 함께 흐려지기 시작
         if (!data.aiScanning) snapFlyBase(data, seq); // 지금 캔버스가 곧 밑그림 (어둡게 덮기 전 상태) → 첫 프레임에 다시 그리지 않는다
         requestAnimationFrame(() => tickSearchFlyAnim(seq));
     }
@@ -4012,8 +4017,9 @@
             requestAnimationFrame(() => tickSearchFlyAnim(seq));
             return;
         }
+        if (!anim.landed) { anim.landed = true; renderZoneNotes(data, !isEditMode && data.id !== 'dummy_root'); } // 안착: 찾은 쪽지만 다시 밝게 (CSS로 천천히). 캔버스의 찾은 칸은 연출이 그린다
         const blinkElapsed = now - anim.blinkStart;
-        if (Math.floor(blinkElapsed / anim.blinkInterval) >= anim.maxBlinks * 2) {
+        if (blinkElapsed >= anim.holdDuration) {
             // 깜빡임을 마치면 애니메이션 루프는 멈추되, 테두리는 계속 유지해서 그린다.
             // (별도 requestAnimationFrame 없이도 다른 동작으로 render()가 다시 호출될 때마다 그대로 그려짐)
             anim.done = true;
@@ -4040,11 +4046,11 @@
         const x = b.cv.getContext('2d'); x.clearRect(0, 0, b.cv.width, b.cv.height); x.drawImage(data.canvas, 0, 0); b.seq = seq;
     }
 
-    // 깜빡임 구간에서 지금이 "켜짐" 차례인지 (깜빡임 전·후에는 null)
-    function searchBlinkOn(anim, now) {
-        if (!anim || anim.blinkStart === null || anim.done) return null;
-        return Math.floor((now - anim.blinkStart) / anim.blinkInterval) % 2 === 0;
+    // 검색 연출이 아직 칸에 안착하기 전인지 (그동안은 찾은 칸 분홍·다른 쪽지 흐리게를 미뤄 한꺼번에 바뀌지 않게)
+    function searchFlyIntro(data) {
+        return !!((searchFlyPending && searchFlyPending.dataId === data.id) || (searchFlyAnim && searchFlyAnim.dataId === data.id && searchFlyAnim.blinkStart === null));
     }
+    function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
     // 🔍 검색 연출 (네온): 어두워진 사진에 물체 테두리가 떠오른 채 스포트라이트가 찾은 칸으로 좁혀 들고,
     // 안착하면 칸이 맥박치듯 빛나고 레이더 고리가 퍼진다 → 끝나면 네온 테두리로 남는다
@@ -4072,20 +4078,22 @@
         };
         if (anim.blinkStart === null) {
             // 날아와서 좁혀지는 구간 (ease-out)
-            const t = Math.min(1, (now - anim.startTime) / anim.flyDuration), e = easeOutCubic(t);
+            // 처음엔 막이 천천히 내려앉고(어둡게·엣지), 그 사이 테두리가 나타나며 부드럽게 좁혀 든다
+            const t = Math.min(1, (now - anim.startTime) / anim.flyDuration), e = easeInOutCubic(t);
             const x = anim.from.x + (to.x - anim.from.x) * e, y = anim.from.y + (to.y - anim.from.y) * e;
             const w = anim.from.w + (to.w - anim.from.w) * e, h = anim.from.h + (to.h - anim.from.h) * e;
-            outside(x, y, w, h, 0.85 * e, 0.8 * e); // 0에서 서서히 (화면이 한 번에 어두워지지 않게)
-            glowRect(x, y, w, h, 16 * k, 3 * k);
+            const dimE = easeOutCubic(Math.min(1, t / 0.75));
+            outside(x, y, w, h, 0.85 * dimE, 0.8 * dimE);
+            ctx.save(); ctx.globalAlpha = easeOutCubic(Math.min(1, t / 0.4)); glowRect(x, y, w, h, 10 * k, 2.5 * k); ctx.restore();
         } else if (anim.done) {
-            glowRect(to.x, to.y, to.w, to.h, 12 * k, 2.5 * k); // 끝나면 네온 테두리로 계속 남는다
+            glowRect(to.x, to.y, to.w, to.h, 10 * k, 2.5 * k); // 끝나면 네온 테두리로 계속 남는다 (맥박이 잦아든 모습 그대로)
         } else {
-            const el = now - anim.blinkStart, total = anim.maxBlinks * 2 * anim.blinkInterval;
-            const lift = Math.max(0, 1 - el / 500); // 안착 직후 진한 막이 평소 스포트라이트 밝기로 걷힌다
+            const el = now - anim.blinkStart, total = anim.holdDuration;
+            const lift = 1 - easeInOutCubic(Math.min(1, el / 900)); // 안착 직후 진한 막이 평소 스포트라이트 밝기로 천천히 걷힌다
             outside(to.x, to.y, to.w, to.h, 0.6 + 0.25 * lift, 0.3 + 0.5 * lift); // 안착 직후 진한 막이 평소 스포트라이트 밝기(0.6)로 걷힌다
-            const pulse = 0.5 + 0.5 * Math.sin(el / 120);
+            const pulse = 0.5 - 0.5 * Math.cos(el / anim.pulseMs), fillIn = Math.min(1, el / 400); // 0에서 시작해 0으로 끝나는 느린 맥박
             // 레이더 고리: 찾은 칸 가운데서 퍼져 나간다
-            const ringEvery = 650, life = ringEvery * 1.6, maxR = Math.max(to.w, to.h) * 0.9 + 30 * k;
+            const ringEvery = 1000, life = 1500, maxR = Math.max(to.w, to.h) * 0.9 + 30 * k;
             for (let r0 = 0; r0 <= Math.min(el, total - life); r0 += ringEvery) {
                 const age = el - r0; if (age > life) continue;
                 const p = age / life, r = 8 * k + maxR * easeOutCubic(p);
@@ -4094,8 +4102,8 @@
                 ctx.globalAlpha = (1 - p) * 0.22; ctx.lineWidth = 9 * k; ctx.stroke(); // 번짐 (선 겹치기)
                 ctx.globalAlpha = (1 - p) * 0.85; ctx.lineWidth = 2 * k; ctx.stroke(); ctx.restore();
             }
-            ctx.save(); ctx.fillStyle = `rgba(255,90,217,${0.06 + 0.12 * pulse})`; ctx.fillRect(to.x, to.y, to.w, to.h); ctx.restore();
-            glowRect(to.x, to.y, to.w, to.h, (10 + 18 * pulse) * k, (2.5 + 1.5 * pulse) * k);
+            ctx.save(); ctx.fillStyle = `rgba(255,90,217,${(0.06 + 0.12 * pulse) * fillIn})`; ctx.fillRect(to.x, to.y, to.w, to.h); ctx.restore();
+            glowRect(to.x, to.y, to.w, to.h, (10 + 14 * pulse) * k, (2.5 + 1.2 * pulse) * k);
         }
     }
 
@@ -4161,6 +4169,7 @@
         // 보기 모드: 캔버스엔 테두리만, 물건 이름은 위에 얹은 노란 쪽지(renderZoneNotes). 편집 모드: 채우기·가운데 이름·말풍선(끌어서 옮기기용)
         const cleanView = !isEditMode && data.id !== 'dummy_root';
         data._drawnFocus = !!activeZone && zones.includes(activeZone); // 고른 칸이 이 사진에 그려졌는지 (selectZone이 다시 그릴 사진만 고를 때)
+        const flyIntro = cleanView && searchFlyIntro(data); // 검색 연출이 좁혀 드는 중: 찾은 칸 표시는 연출이 맡는다
         (data.aiScanning ? [] : zones).forEach((z, zi) => { // AI 연출 중엔 레이더 화면이 하나씩 박으니 밑그림에선 숨긴다
             // 검색 후 깜빡이는 동안에는 기존 빨간 박스도 테두리와 함께 사라졌다 보였다 한다 (끝나면 계속 보임).
             const hideBox = false; // 찾은 칸은 깜빡여 사라지지 않고 네온으로 맥박치듯 빛난다 (drawSearchFlyOverlay)
@@ -4171,11 +4180,11 @@
                 else { ctx.fillStyle = `rgba(${themeColors.accentRgb}, 0.3)`; ctx.strokeStyle = themeColors.accent2; ctx.lineWidth = 5; }
             }
             else if (isHovered) { ctx.fillStyle = 'rgba(255, 243, 196, 0.35)'; ctx.strokeStyle = '#c8960a'; ctx.lineWidth = 3; }
-            else if (z === activeZone) { ctx.fillStyle = 'rgba(255, 90, 217, 0.14)'; ctx.strokeStyle = NEON_ZONE; ctx.lineWidth = Math.max(3, 2.5 * displayScale(canvas)); }
+            else if (z === activeZone && !flyIntro) { ctx.fillStyle = 'rgba(255, 90, 217, 0.14)'; ctx.strokeStyle = NEON_ZONE; ctx.lineWidth = Math.max(3, 2.5 * displayScale(canvas)); }
             else if (cleanView) { /* 보기 모드 기본: 아래에서 테두리만 그림 */ }
             else { ctx.fillStyle = `rgba(${themeColors.zoneFillRgb}, ${themeColors.zoneFillAlpha})`; ctx.strokeStyle = themeColors.zoneStroke; ctx.lineWidth = 2; }
             if (!hideBox) {
-                if (cleanView && !pickMode && !isHovered && z !== activeZone) {
+                if (cleanView && !pickMode && !isHovered && (z !== activeZone || flyIntro)) {
                     // 어떤 사진에서도(흰 수납장이든 어두운 창고든) 보이도록 같은 자리에 굵은 검정 테두리 → 얇은 흰 테두리를
                     // 겹쳐 그려 "이중 테두리(halo)"로 만든다. 1px 밀어서 그리는 그림자 방식은 흰 배경에서 거의 안 보였다.
                     // 네온 테두리: 어두운 바탕선 위에 빛나는 선 (흰 수납장·어두운 창고 어디서든 보이게)
@@ -4427,7 +4436,7 @@
                 const top = canvas.getBoundingClientRect().top;
                 stableFrames = Math.abs(top - lastTop) < 0.5 ? stableFrames + 1 : 0;
                 lastTop = top;
-                if (stableFrames >= 3 || performance.now() - settleStart >= maxWait) {
+                if ((stableFrames >= 3 && performance.now() - settleStart >= 250) || performance.now() - settleStart >= maxWait) { // 검색 창이 닫히는 걸 잠깐 보여 준 뒤에 시작
                     startSearchFlyAnimation(activeData, activeZone);
                     return;
                 }
@@ -4636,7 +4645,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.6';
+    const APP_VERSION = '베타 2026.10.17.7';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
