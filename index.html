@@ -1089,10 +1089,20 @@
             min-height: calc(100vh - var(--welcome-offset, 124px)); min-height: calc(100dvh - var(--welcome-offset, 124px));
         }
         body.welcome-open .content-wrapper { margin-bottom: 0; }
-        /* 첫 화면 그림: 선반 구역 중 찾은 칸에 핀이 떨어져 한 번 튕긴 뒤 제자리에 선다 */
+        /* 첫 화면 그림: 레이더가 선반 사진을 훑어 칸을 찾고, 찾은 칸에 핀이 떨어져 한 번 튕긴 뒤 제자리에 선다 */
         .welcome-hero { display: block; width: min(220px, 64%); height: auto; margin: 0 auto 20px; overflow: visible; }
-        .welcome-hero-pin { transform-box: fill-box; transform-origin: 50% 100%; animation: hero-pin-drop 0.9s cubic-bezier(0.3, 0, 0.4, 1) 0.25s both; }
-        .welcome-hero-hit { animation: hero-hit-on 0.4s ease-out 0.7s both; }
+        /* 네온 레이더 연출 (앱의 AI 구역 찾기와 같은 느낌): 훑기 → 엣지 → 칸이 하나씩 박힘 → 찾은 칸 빛남 → 레이더 고리 → 핀 */
+        .wh-sweep { animation: wh-sweep 1.15s linear 0.15s both; }
+        .wh-edges { animation: wh-breathe 2.4s ease-in-out 1.4s infinite; }
+        .wh-zone { transform-box: fill-box; transform-origin: 50% 50%; animation: wh-stamp 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+        .welcome-hero-hit { animation: hero-hit-on 0.4s ease-out 2.05s both; }
+        .wh-ping { transform-box: fill-box; transform-origin: 50% 50%; opacity: 0; animation: wh-ping 1.3s ease-out 2.2s 2; }
+        .wh-ping2 { animation-delay: 2.65s; }
+        .welcome-hero-pin { transform-box: fill-box; transform-origin: 50% 100%; animation: hero-pin-drop 0.9s cubic-bezier(0.3, 0, 0.4, 1) 2.35s both; }
+        @keyframes wh-sweep { from { transform: translateY(30px); opacity: 1; } 92% { opacity: 1; } to { transform: translateY(162px); opacity: 0; } }
+        @keyframes wh-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+        @keyframes wh-stamp { 0% { opacity: 0; transform: scale(1.3); } 60% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes wh-ping { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(4.2); } }
         @keyframes hero-pin-drop {
             0%   { transform: translateY(-70px); opacity: 0; }
             15%  { opacity: 1; }
@@ -1102,7 +1112,7 @@
             100% { transform: translateY(0) scale(1); opacity: 1; }
         }
         @keyframes hero-hit-on { from { opacity: 0; } to { opacity: 1; } }
-        @media (prefers-reduced-motion: reduce) { .welcome-hero-pin, .welcome-hero-hit { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .welcome-hero-pin, .welcome-hero-hit, .wh-zone, .wh-edges { animation: none; } .wh-sweep, .wh-ping { display: none; } }
         @media (max-height: 700px) { .welcome-hero { width: min(160px, 50%); margin-bottom: 12px; } }
         body.welcome-open .floating-remote { display: none; }
         .welcome-card .welcome-back { align-self: center; }
@@ -1813,24 +1823,59 @@
     <section id="welcomeCard" class="welcome-card" style="display: none;">
         <button type="button" class="btn-xs welcome-back revisit-only" onclick="closeWelcomeRevisit()"><i class="ti ti-arrow-left"></i> 내 지도로 돌아가기</button>
         <div class="welcome-top">
-        <svg class="welcome-hero" viewBox="0 0 240 176" role="img" aria-label="벽에 테이프로 붙인 선반 지도에서 찾는 구역에 노란 쪽지가 붙고 핀이 꽂힌 그림">
+        <svg class="welcome-hero" viewBox="0 0 240 176" role="img" aria-label="벽에 붙인 선반 사진을 AI가 레이더처럼 훑어 칸을 하나씩 찾고, 찾는 물건 칸에 쪽지와 핀이 꽂히는 그림">
+            <defs>
+                <filter id="whGlowC" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                <filter id="whGlowP" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                <linearGradient id="whSweep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46ebff" stop-opacity="0"/><stop offset="1" stop-color="#46ebff" stop-opacity=".45"/></linearGradient>
+                <clipPath id="whScreen"><rect x="20" y="30" width="200" height="132" rx="8"/></clipPath>
+                <clipPath id="whReveal"><rect x="20" y="30" width="200" height="0"><animate attributeName="height" from="0" to="132" begin="0.15s" dur="1.15s" fill="freeze"/></rect></clipPath>
+            </defs>
             <!-- 벽에 테이프로 붙인 종이: 이 지도를 뽑아 붙여 쓸 수 있다는 걸 글 없이 보여준다 -->
             <rect x="13" y="22" width="216" height="154" rx="3" fill="#000" opacity=".07"/>
             <rect x="10" y="19" width="216" height="154" rx="3" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
-            <rect x="20" y="30" width="200" height="132" rx="8" fill="var(--bg)" stroke="var(--border)" stroke-width="2"/>
-            <g stroke="var(--border)" stroke-width="2"><line x1="20" y1="96" x2="220" y2="96"/><line x1="86" y1="30" x2="86" y2="162"/><line x1="153" y1="30" x2="153" y2="162"/></g>
-            <g fill="none" stroke="var(--accent-text)" stroke-width="2" stroke-dasharray="5 4" opacity=".4">
-                <rect x="27" y="37" width="52" height="52" rx="5"/><rect x="160" y="37" width="53" height="52" rx="5"/>
-                <rect x="27" y="103" width="52" height="52" rx="5"/><rect x="93" y="103" width="53" height="52" rx="5"/><rect x="160" y="103" width="53" height="52" rx="5"/>
+            <!-- 레이더 화면: 어두운 바탕 + 옅은 격자 -->
+            <rect x="20" y="30" width="200" height="132" rx="8" fill="#0b1026"/>
+            <g clip-path="url(#whScreen)">
+                <g stroke="#46ebff" stroke-width=".6" opacity=".14">
+                    <line x1="20" y1="52" x2="220" y2="52"/><line x1="20" y1="74" x2="220" y2="74"/><line x1="20" y1="118" x2="220" y2="118"/><line x1="20" y1="140" x2="220" y2="140"/>
+                    <line x1="42" y1="30" x2="42" y2="162"/><line x1="64" y1="30" x2="64" y2="162"/><line x1="108" y1="30" x2="108" y2="162"/><line x1="130" y1="30" x2="130" y2="162"/><line x1="175" y1="30" x2="175" y2="162"/><line x1="197" y1="30" x2="197" y2="162"/>
+                </g>
+                <!-- 물체 테두리(엣지): 레이더 선이 지나가며 네온으로 떠오른다 -->
+                <g clip-path="url(#whReveal)"><g filter="url(#whGlowC)">
+                    <g class="wh-edges" fill="none" stroke="#46ebff" stroke-width="1.3">
+                        <rect x="22" y="32" width="196" height="128" rx="6"/>
+                        <line x1="20" y1="96" x2="220" y2="96"/><line x1="86" y1="30" x2="86" y2="162"/><line x1="153" y1="30" x2="153" y2="162"/>
+                    </g>
+                    <g class="wh-edges" fill="none" stroke="#46ebff" stroke-width="1" opacity=".75">
+                    <rect x="31" y="58" width="20" height="28" rx="1.5"/><rect x="54" y="64" width="21" height="22" rx="1.5"/>
+                    <rect x="165" y="52" width="40" height="34" rx="1.5"/>
+                    <rect x="31" y="120" width="44" height="32" rx="1.5"/>
+                    <rect x="97" y="114" width="20" height="38" rx="1.5"/><rect x="120" y="126" width="22" height="26" rx="1.5"/>
+                    <rect x="164" y="118" width="21" height="34" rx="1.5"/><rect x="188" y="124" width="21" height="28" rx="1.5"/>
+                    </g>
+                </g></g>
+                <g class="wh-sweep"><rect x="20" y="0" width="200" height="26" fill="url(#whSweep)"/><rect x="20" y="25" width="200" height="1.6" fill="#c9fbff"/></g>
+            </g>
+            <!-- 칸이 하나씩 "탁탁탁" 박힌다 -->
+            <g fill="none" stroke="#ff6ee0" stroke-width="2">
+                <rect class="wh-zone" filter="url(#whGlowP)" style="animation-delay:1.25s" x="27" y="37" width="52" height="52" rx="5"/>
+                <rect class="wh-zone" filter="url(#whGlowP)" style="animation-delay:1.37s" x="93" y="37" width="53" height="52" rx="5"/>
+                <rect class="wh-zone" filter="url(#whGlowP)" style="animation-delay:1.49s" x="160" y="37" width="53" height="52" rx="5"/>
+                <rect class="wh-zone" filter="url(#whGlowP)" style="animation-delay:1.61s" x="27" y="103" width="52" height="52" rx="5"/>
+                <rect class="wh-zone" filter="url(#whGlowP)" style="animation-delay:1.73s" x="93" y="103" width="53" height="52" rx="5"/>
+                <rect class="wh-zone" filter="url(#whGlowP)" style="animation-delay:1.85s" x="160" y="103" width="53" height="52" rx="5"/>
             </g>
             <rect x="2" y="12" width="40" height="13" rx="1.5" fill="var(--accent2)" opacity=".55" transform="rotate(-24 22 18)"/>
             <rect x="198" y="12" width="40" height="13" rx="1.5" fill="var(--accent2)" opacity=".55" transform="rotate(24 218 18)"/>
+            <!-- 찾는 물건 칸: 빛나고 레이더 고리가 퍼진 뒤 노란 쪽지 + 핀 -->
             <g class="welcome-hero-hit">
-                <rect x="93" y="37" width="53" height="52" rx="5" fill="var(--accent2)" fill-opacity=".35" stroke="var(--accent-text)" stroke-width="3"/>
-                <!-- 찾은 칸에 붙은 노란 쪽지 (숫자는 넣지 않는다) -->
+                <rect x="93" y="37" width="53" height="52" rx="5" fill="#ff5ad9" fill-opacity=".28" stroke="#ff6ee0" stroke-width="3" filter="url(#whGlowP)"/>
                 <rect x="98" y="58" width="32" height="24" rx="2" fill="#fff3a3"/><g stroke="#8a7a3a" stroke-width="2" stroke-linecap="round"><line x1="103" y1="66" x2="124" y2="66"/><line x1="103" y1="74" x2="117" y2="74"/></g>
             </g>
-            <g class="welcome-hero-pin"><path d="M119 36 a12 12 0 1 1 24 0 c0 9 -12 20 -12 20 s-12 -11 -12 -20z" fill="var(--accent)"/><circle cx="131" cy="35" r="4.5" fill="var(--on-accent)"/></g>
+            <circle class="wh-ping" cx="119.5" cy="63" r="10" fill="none" stroke="#46ebff" stroke-width="2" filter="url(#whGlowC)"/>
+            <circle class="wh-ping wh-ping2" cx="119.5" cy="63" r="10" fill="none" stroke="#46ebff" stroke-width="2" filter="url(#whGlowC)"/>
+            <g class="welcome-hero-pin"><path d="M119 36 a12 12 0 1 1 24 0 c0 9 -12 20 -12 20 s-12 -11 -12 -20z" fill="#ff4fd8"/><circle cx="131" cy="35" r="4.5" fill="#fff"/></g>
         </svg>
         <div class="welcome-brand"><div class="welcome-brand-name"><b data-app-name>창고여지도</b><small class="welcome-en" data-app-name-en hidden></small></div></div>
         <h2 class="welcome-title">사진 한 장이<br>창고 지도가 돼요</h2>
@@ -4523,7 +4568,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.2';
+    const APP_VERSION = '베타 2026.10.17.3';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
