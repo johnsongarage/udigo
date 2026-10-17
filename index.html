@@ -542,6 +542,9 @@
         .zoom-box:not(.zoomed) .zoom-wrap { overflow: hidden; }
         .zoom-box:not(.is-fs) .zoom-wrap { overscroll-behavior: auto; } /* 목록 속 확대 사진(PC +버튼)은 끝까지 밀면 화면이 이어서 움직이게 */
         .zoom-stage { position: relative; width: 100%; }
+        /* AI 구역 찾기 연출: 사진 위에 겹치는 레이더 화면 (누르면 건너뜀) */
+        .ai-scan { position: absolute; z-index: 30; cursor: pointer; touch-action: manipulation; }
+        .zoom-stage.ai-scanning .first-zone, .zoom-stage.ai-scanning .note-layer { visibility: hidden; } /* 레이더 화면 위로 고르기 버튼이 비치지 않게 */
         .zoom-stage canvas { width: 100%; height: auto; max-width: none; margin: 0; }
         .note-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
         /* 구역이 없는 사진 (보기 모드): 가운데에서 [AI로 구역 찾기] / 또는 / [직접 그리기] 고르기. 고치는 중엔 숨기고 사진 위쪽 띠(.draw-strip)로 안내 */
@@ -2615,6 +2618,120 @@
         }
     }
 
+    // ─── ✨ AI 구역 찾기 연출 ─────────────────────────────────────────────────
+    // AI가 일하는 동안: 사진이 어두워지고 레이더 선이 훑으며 물체 테두리(엣지)가 네온으로 떠오른다
+    // → 결과가 오면 구역이 하나씩 "탁탁탁" 박힌다 → 막이 걷히고 원본 사진 위에 네온 테두리만 남는다. 화면을 누르면 건너뜀
+    const NEON_ZONE = '#ff6ee0', NEON_ZONE_GLOW = 'rgba(255,90,217,0.95)', NEON_EDGE_RGB = [70, 235, 255];
+    function strokeNeon(ctx, z, k) {
+        ctx.save();
+        ctx.shadowColor = NEON_ZONE_GLOW; ctx.shadowBlur = Math.max(8, 6 * k);
+        ctx.lineWidth = Math.max(2, 1.5 * k); ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.shadowBlur = Math.max(3, 2 * k); ctx.lineWidth = Math.max(1, 0.7 * k); ctx.strokeStyle = '#fff3fd'; ctx.strokeRect(z.x, z.y, z.w, z.h); // 가운데 흰 심: 네온관처럼
+        ctx.restore();
+    }
+    // 사진의 테두리(밝기가 확 바뀌는 곳)만 뽑아 네온 색 투명 그림으로 (AI 아님, 폰 안에서 계산 · 작게 줄여서 빠르게)
+    function neonEdgeImage(img) {
+        const sw = Math.min(420, img.width), sh = Math.max(1, Math.round(img.height * sw / img.width));
+        const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+        const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, sw, sh);
+        const px = x.getImageData(0, 0, sw, sh).data, n = sw * sh, g = new Float32Array(n), b = new Float32Array(n), m = new Float32Array(n);
+        for (let i = 0; i < n; i++) g[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+        for (let y = 1; y < sh - 1; y++) for (let xx = 1; xx < sw - 1; xx++) { // 잔무늬를 줄이려고 살짝 흐리게
+            const i = y * sw + xx; b[i] = (g[i] * 4 + g[i - 1] + g[i + 1] + g[i - sw] + g[i + sw]) / 8;
+        }
+        for (let y = 2; y < sh - 2; y++) for (let xx = 2; xx < sw - 2; xx++) { // 소벨: 가로·세로 밝기 변화
+            const i = y * sw + xx;
+            const gx = -b[i - sw - 1] - 2 * b[i - 1] - b[i + sw - 1] + b[i - sw + 1] + 2 * b[i + 1] + b[i + sw + 1];
+            const gy = -b[i - sw - 1] - 2 * b[i - sw] - b[i - sw + 1] + b[i + sw - 1] + 2 * b[i + sw] + b[i + sw + 1];
+            m[i] = Math.hypot(gx, gy);
+        }
+        const sorted = m.slice().sort(), t = Math.max(30, sorted[Math.floor(n * 0.9)]); // 가장 센 10%만 선으로
+        const out = x.createImageData(sw, sh), o = out.data, [r, gg, bb] = NEON_EDGE_RGB;
+        for (let i = 0; i < n; i++) if (m[i] > t) { o[i * 4] = r; o[i * 4 + 1] = gg; o[i * 4 + 2] = bb; o[i * 4 + 3] = Math.min(255, 110 + (m[i] - t) / t * 260); }
+        x.putImageData(out, 0, 0); return c;
+    }
+    function startAiScan(data) {
+        const stage = data.noteStage, base = data.canvas;
+        if (!stage || !base || !base.clientWidth) return null;
+        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const W = base.clientWidth, H = base.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+        const cv = document.createElement('canvas'); cv.className = 'ai-scan';
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        Object.assign(cv.style, { left: base.offsetLeft + 'px', top: base.offsetTop + 'px', width: W + 'px', height: H + 'px' });
+        cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', 'AI가 구역을 찾는 중');
+        stage.appendChild(cv); stage.classList.add('ai-scanning');
+        const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+        let edges = null; try { edges = neonEdgeImage(data.img); } catch (e) {}
+        const S = { t0: performance.now(), phase: 'scan', zones: [], stampAt: [], fadeAt: 0, skip: false, raf: 0, resolve: null, msg: 'AI가 구역을 찾는 중' };
+        const sc = W / base.width, PERIOD = 1500;
+        cv.addEventListener('click', (e) => { e.stopPropagation(); S.skip = true; });
+        const label = (txt, a) => {
+            ctx.save(); ctx.globalAlpha = a; ctx.font = '700 14px sans-serif'; ctx.textAlign = 'center';
+            ctx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 10; ctx.fillStyle = '#d9fbff';
+            ctx.fillText(txt, W / 2, H - 16); ctx.restore();
+        };
+        function frame(now) {
+            const el = now - S.t0;
+            let all = 1;
+            if (S.phase === 'fade') { all = Math.max(0, 1 - (now - S.fadeAt) / (S.skip ? 220 : 650)); if (all <= 0) return end(); }
+            ctx.clearRect(0, 0, W, H);
+            // 어두운 막 + 레이더 격자
+            ctx.fillStyle = `rgba(4,8,22,${0.74 * all})`; ctx.fillRect(0, 0, W, H);
+            ctx.strokeStyle = `rgba(${NEON_EDGE_RGB},${0.07 * all})`; ctx.lineWidth = 1; ctx.beginPath();
+            for (let gx = 0; gx < W; gx += 26) { ctx.moveTo(gx + 0.5, 0); ctx.lineTo(gx + 0.5, H); }
+            for (let gy = 0; gy < H; gy += 26) { ctx.moveTo(0, gy + 0.5); ctx.lineTo(W, gy + 0.5); }
+            ctx.stroke();
+            // 네온 엣지: 첫 바퀴는 레이더 선이 지나간 곳까지만, 그다음은 숨 쉬듯 깜빡
+            const sweepY = ((el % PERIOD) / PERIOD) * H, firstPass = el < PERIOD && S.phase === 'scan';
+            if (edges) {
+                const pulse = S.phase === 'scan' ? 0.55 + 0.35 * Math.sin(el / 260) : 0.35;
+                ctx.save(); ctx.globalAlpha = pulse * all; ctx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 6;
+                if (firstPass) { ctx.beginPath(); ctx.rect(0, 0, W, sweepY); ctx.clip(); }
+                ctx.drawImage(edges, 0, 0, W, H); ctx.restore();
+            }
+            if (S.phase === 'scan') { // 레이더 선: 위에서 아래로 훑는 빛 띠
+                const gr = ctx.createLinearGradient(0, sweepY - 70, 0, sweepY);
+                gr.addColorStop(0, `rgba(${NEON_EDGE_RGB},0)`); gr.addColorStop(1, `rgba(${NEON_EDGE_RGB},0.28)`);
+                ctx.fillStyle = gr; ctx.fillRect(0, sweepY - 70, W, 70);
+                ctx.save(); ctx.shadowColor = `rgba(${NEON_EDGE_RGB},1)`; ctx.shadowBlur = 14; ctx.fillStyle = '#c9fbff'; ctx.fillRect(0, sweepY - 1, W, 2); ctx.restore();
+            }
+            // 구역이 하나씩 박힌다: 크게 나타나 제자리로 "탁" + 번호
+            S.zones.forEach((z, i) => {
+                const at = S.stampAt[i]; if (now < at) return;
+                const age = now - at, pop = age < 170 ? 1.28 - 0.28 * (age / 170) : 1, flash = age < 240 ? 1 - age / 240 : 0;
+                const w = z.w * sc * pop, h = z.h * sc * pop, x = z.x * sc + (z.w * sc - w) / 2, y = z.y * sc + (z.h * sc - h) / 2;
+                ctx.save(); ctx.globalAlpha = all;
+                if (flash) { ctx.fillStyle = `rgba(255,110,224,${0.35 * flash})`; ctx.fillRect(x, y, w, h); }
+                ctx.shadowColor = NEON_ZONE_GLOW; ctx.shadowBlur = 14; ctx.lineWidth = 2.5; ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(x, y, w, h);
+                ctx.shadowBlur = 4; ctx.lineWidth = 1; ctx.strokeStyle = '#fff3fd'; ctx.strokeRect(x, y, w, h);
+                const r = 10, cx = x + r + 3, cy = y + r + 3;
+                ctx.shadowBlur = 8; ctx.fillStyle = 'rgba(20,4,30,0.9)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = NEON_ZONE; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(i + 1), cx, cy + 0.5);
+                ctx.restore();
+            });
+            label(S.msg, all);
+            if (S.phase === 'stamp' && S.skip) S.stampAt = S.stampAt.map(t => Math.min(t, now));
+            if (S.phase === 'stamp' && now >= (S.stampAt[S.stampAt.length - 1] || now) + (S.skip ? 80 : 520)) { S.phase = 'fade'; S.fadeAt = now; }
+            S.raf = requestAnimationFrame(frame);
+        }
+        function end() { cancelAnimationFrame(S.raf); cv.remove(); stage.classList.remove('ai-scanning'); const r = S.resolve; S.resolve = null; if (r) r(); }
+        if (!reduce) S.raf = requestAnimationFrame(frame);
+        return {
+            minWait: (ms) => new Promise(res => { const t0 = performance.now(); (function w() { if (S.skip || reduce || performance.now() - t0 >= ms) res(); else setTimeout(w, 50); })(); }),
+            // 찾은 구역(사진 좌표)을 하나씩 박고, 막을 걷은 뒤 끝난다
+            finish(zones) {
+                if (reduce || !zones.length) { end(); return Promise.resolve(); }
+                return new Promise(res => {
+                    S.resolve = res; S.zones = zones; S.msg = `구역 ${zones.length}개를 찾았어요`;
+                    const now = performance.now(), gap = Math.max(60, Math.min(130, 1300 / zones.length));
+                    S.stampAt = zones.map((_, i) => now + 120 + i * gap); S.phase = 'stamp';
+                });
+            },
+            abort: end
+        };
+    }
+
     // ─── AI 자동 분석 (메인) ──────────────────────────────────────────────────
     async function runAIAnalysis(dataId) {
         const data = imageList.find(d => d.id == dataId);
@@ -2624,9 +2741,10 @@
 
         // 사진이 외부 AI 서버로 나간다는 건 따로 묻지 않고, AI 버튼 바로 아래 한 줄(first-zone-note)로 미리 보여 준다 (처음 쓰는 기능 앞에 창을 띄우면 멈칫한다)
 
-        // 💡 1. 시작: dimm 및 안내 문구 표시
-        document.getElementById('editOverlay').style.display = 'block';
-        document.getElementById('aiLoadingMsg').style.display = 'block';
+        // 💡 1. 시작: 사진 위 레이더 연출 (사진이 안 보이는 상황이면 예전처럼 화면 dimm + 안내 문구)
+        if (data.zoomBox) data.zoomBox.scrollIntoView({ block: 'nearest' });
+        const scan = startAiScan(data);
+        if (!scan) { document.getElementById('editOverlay').style.display = 'block'; document.getElementById('aiLoadingMsg').style.display = 'block'; }
 
         const aiBtn = document.getElementById(`aiBtn-${dataId}`), fzAi = data.firstZone && data.firstZone.querySelector('.first-zone-ai'), stripAi = data.drawStrip && data.drawStrip.querySelector('.draw-strip-ai');
         const busy = '<i class="ti ti-loader-2" style="animation: spin 0.8s linear infinite;"></i> 찾는 중...';
@@ -2637,9 +2755,9 @@
 
         try {
             const base64 = data.imgData.split(',')[1];
-            const predictions = await detectZones(base64);
+            const [predictions] = await Promise.all([detectZones(base64), scan ? scan.minWait(1400) : null]); // 너무 빨리 끝나도 레이더는 잠깐 보여 준다
 
-            if (predictions.length === 0) { found = 0; return; } // finally에서 안내
+            if (predictions.length === 0) { found = 0; if (scan) scan.abort(); return; } // finally에서 안내
 
             const scaleRatio = 800 / data.img.width;
 
@@ -2676,10 +2794,13 @@
 
             saveData();
             render(data);
+            if (scan) { data.aiScanning = true; render(data); await scan.finish(data.zones); data.aiScanning = false; render(data); } // 구역이 하나씩 박히고 막이 걷힌다
             expandZoneList(data.id);
 
             found = ordered.length;
         } catch (err) {
+            data.aiScanning = false;
+            if (scan) scan.abort();
             alert("AI 구역 찾기에 실패했어요. 인터넷 연결을 확인하거나, 직접 그려 주세요.\n(" + err.message + ")");
         } finally {
             // 💡 3. 마무리: 버튼 복구 및 dimm/메시지 숨김
@@ -3925,7 +4046,7 @@
 
         // 보기 모드: 캔버스엔 테두리만, 물건 이름은 위에 얹은 노란 쪽지(renderZoneNotes). 편집 모드: 채우기·가운데 이름·말풍선(끌어서 옮기기용)
         const cleanView = !isEditMode && data.id !== 'dummy_root';
-        zones.forEach((z, zi) => {
+        (data.aiScanning ? [] : zones).forEach((z, zi) => { // AI 연출 중엔 레이더 화면이 하나씩 박으니 밑그림에선 숨긴다
             // 검색 후 깜빡이는 동안에는 기존 빨간 박스도 테두리와 함께 사라졌다 보였다 한다 (끝나면 계속 보임).
             const hideBox = flyAnim && flyAnim.zone === z && searchBlinkOn(flyAnim, frameNow) === false;
             const isHovered = holdingItem && activeData === data && mousePos.x >= z.x && mousePos.x <= z.x + z.w && mousePos.y >= z.y && mousePos.y <= z.y + z.h;
@@ -3942,15 +4063,16 @@
                 if (cleanView && !pickMode && !isHovered && z !== activeZone) {
                     // 어떤 사진에서도(흰 수납장이든 어두운 창고든) 보이도록 같은 자리에 굵은 검정 테두리 → 얇은 흰 테두리를
                     // 겹쳐 그려 "이중 테두리(halo)"로 만든다. 1px 밀어서 그리는 그림자 방식은 흰 배경에서 거의 안 보였다.
+                    // 네온 테두리: 어두운 바탕선 위에 빛나는 선 (흰 수납장·어두운 창고 어디서든 보이게)
                     const k = displayScale(canvas);
-                    ctx.lineWidth = Math.max(5, 3 * k); ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
-                    ctx.lineWidth = Math.max(2, 1.3 * k); ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+                    ctx.lineWidth = Math.max(5, 3 * k); ctx.strokeStyle = 'rgba(16,0,28,0.55)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+                    strokeNeon(ctx, z, k);
                 } else if (isEditMode && !pickMode && !isHovered && z !== activeZone) {
                     // 고치기 기본 구역: 2px 고정이면 폰에서 1px도 안 돼 사진에 묻혔다 → 화면 배율만큼 굵게 + 어두운 테두리 위에 색 선
                     const k = displayScale(canvas);
                     ctx.fillRect(z.x, z.y, z.w, z.h);
-                    ctx.lineWidth = Math.max(5, 3.2 * k); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
-                    ctx.lineWidth = Math.max(2.5, 1.7 * k); ctx.strokeStyle = themeColors.zoneStroke; ctx.strokeRect(z.x, z.y, z.w, z.h);
+                    ctx.lineWidth = Math.max(5, 3.2 * k); ctx.strokeStyle = 'rgba(16,0,28,0.5)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+                    strokeNeon(ctx, z, k);
                 } else { ctx.fillRect(z.x, z.y, z.w, z.h); ctx.strokeRect(z.x, z.y, z.w, z.h); }
             }
             if (!cleanView) drawEditZoneInfo(ctx, z, z === activeZone);
@@ -4393,7 +4515,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.15.5';
+    const APP_VERSION = '베타 2026.10.17.1';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
