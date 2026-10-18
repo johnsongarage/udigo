@@ -444,6 +444,22 @@
             body.hero-search-active.hero-search-focused .hero-quick { display: none; }
 
             .hero-summary { text-align: center; font-size: 14px; font-weight: 500; color: var(--hero-text2); margin-top: -6px; font-variant-numeric: tabular-nums; }
+            /* 창고 브리핑: 작은 레이더 화면 카드에 숫자가 0부터 올라간다 */
+            .brief { position: relative; overflow: hidden; padding: 12px 12px 10px; border-radius: 16px; background: #0b1026; box-shadow: var(--shadow-md), inset 0 0 0 1px rgba(70,235,255,0.22); color: #e6fdff; text-align: left; }
+            .brief::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(70,235,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(70,235,255,0.07) 1px, transparent 1px); background-size: 18px 18px; pointer-events: none; }
+            .brief::after { content: ''; position: absolute; left: 0; right: 0; top: -40%; height: 40%; background: linear-gradient(transparent, rgba(70,235,255,0.16)); animation: brief-sweep 3.2s linear infinite; pointer-events: none; }
+            @keyframes brief-sweep { to { transform: translateY(350%); } }
+            .brief-head { position: relative; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 700; color: rgba(200,245,255,0.75); }
+            .brief-head .dot { width: 7px; height: 7px; border-radius: 50%; background: #46ebff; box-shadow: 0 0 8px #46ebff; animation: low-breath 1.6s ease-in-out infinite; }
+            .brief-grid { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+            .brief-tile { padding: 6px 4px 5px; border-radius: 10px; background: rgba(70,235,255,0.07); text-align: center; }
+            .brief-tile b { display: block; font-size: 22px; font-weight: 800; line-height: 1.15; color: #fff; text-shadow: 0 0 10px rgba(70,235,255,0.8); font-variant-numeric: tabular-nums; }
+            .brief-tile span { font-size: 11px; color: rgba(200,245,255,0.7); white-space: nowrap; }
+            .brief-tile.is-low { background: rgba(255,140,30,0.14); }
+            .brief-tile.is-low b { color: #ffd7a8; text-shadow: 0 0 10px rgba(255,140,30,0.9); }
+            .brief-foot { position: relative; margin-top: 8px; font-size: 12px; color: rgba(200,245,255,0.7); }
+            .brief-foot b { color: #fff; font-weight: 700; }
+            @media (prefers-reduced-motion: reduce) { .brief::after, .brief-head .dot { animation: none; } }
             .hero-quick { flex-direction: column; gap: 10px; margin-top: 6px; }
             .hero-quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
             .hero-quick-label { font-size: 12px; font-weight: 700; color: var(--hero-text2); width: 30px; flex-shrink: 0; }
@@ -3633,8 +3649,9 @@
         if (data.id !== 'dummy_root') showWelcome(false);
         initCanvasEvents(data, canvas); initPhotoZoom(data); if (!imageList.includes(data)) { imageList.push(data); } render(data);
         syncPhotoView();
-        if (document.body.classList.contains('hero-search-active')) renderHeroHome();
+        if (document.body.classList.contains('hero-search-active')) { clearTimeout(heroHomeTimer); heroHomeTimer = setTimeout(renderHeroHome, 150); } // 사진이 줄줄이 붙는 동안엔 마지막에 한 번 (브리핑 숫자가 매번 0부터 다시 올라가지 않게)
     }
+    let heroHomeTimer = 0;
 
     // 사진 위 글자 크기: 기본값(폰 22 · PC 16)에서 얼마나 키웠는지를 저장해 다음에 열어도 유지 (가−/가+와 설정이 같은 값을 쓴다)
     const FONT_BASE = bubbleFontSize;
@@ -4782,7 +4799,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.18.5';
+    const APP_VERSION = '베타 2026.10.18.6';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -4822,7 +4839,7 @@
         wipeAllData();
     }
     function wipeAllData() {
-        ['savedSystemData', 'baseItems', 'isSampleData', 'industry', 'industryAsked', 'lastBackupAt', 'dataChangedAt', 'backupBannerHiddenUntil', USAGE_KEY, SEARCH_HISTORY_KEY, SEARCH_PICKS_KEY]
+        ['savedSystemData', 'baseItems', 'isSampleData', 'industry', 'industryAsked', 'lastBackupAt', 'dataChangedAt', 'backupBannerHiddenUntil', USAGE_KEY, SEARCH_HISTORY_KEY, SEARCH_PICKS_KEY, 'findLog']
             .forEach(k => { try { safeStorage.removeItem(k); } catch (e) {} });
         reloadAfterSave();
     }
@@ -5004,7 +5021,7 @@
         const u = readUsage(), t = new Date(), today = `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`; // 기기 시간 기준 날짜
         if (!u.days.includes(today)) { u.days = [...u.days, today].slice(-10); writeUsage(u); }
     }
-    function recordFind() { if (!isRealUse()) return; const u = readUsage(); u.finds = (u.finds || 0) + 1; writeUsage(u); }
+    function recordFind() { logFindDay(); if (!isRealUse()) return; const u = readUsage(); u.finds = (u.finds || 0) + 1; writeUsage(u); }
 
     // 📊 사용 통계: 매장이 계속 쓰는지(썼냐 안 썼냐)만 보려고, "쓴 날짜"만 익명으로 보낸다
     //   보내는 것: 무작위 번호(예: K7Q2MX) + 앱을 쓴 날짜. 그 밖의 것(사진·이름·메모·개수·횟수·기기)은 보내지 않는다
@@ -5194,7 +5211,7 @@
         const photos = imageList.filter(d => d.id !== 'dummy_root');
         const zoneCount = photos.reduce((n, d) => n + d.zones.length, 0);
         const itemCount = new Set(photos.flatMap(d => d.zones.flatMap(z => z.items.map(i => i.name)))).size;
-        sum.textContent = photos.length ? `사진 ${photos.length}장 · 구역 ${zoneCount}곳 · 물건 ${itemCount}개` : '';
+        renderBrief(sum, photos, zoneCount, itemCount);
         const history = loadSearchStore(SEARCH_HISTORY_KEY, []).slice(0, 5);
         const frequent = Object.entries(loadSearchStore(SEARCH_PICKS_KEY, {})).filter(([name]) => existsInStore(name)).sort((a, b) => b[1] - a[1]).slice(0, 4);
         const chip = (q, extra = '') => `<button type="button" class="hero-chip" data-q="${escapeHtml(q)}" onclick="applySearchSuggestion(this)">${escapeHtml(q)}${extra}</button>`;
@@ -5204,6 +5221,40 @@
         quick.innerHTML = html || '<p class="hero-quick-tip">물건 이름, 초성(ㅅㄹ), 말로도 찾을 수 있어요</p>';
     }
 
+    // 창고 브리핑 카드: 구역·물건·이번 주 찾음·부족 + 마지막 재고 확인. 숫자는 바뀌었을 때(처음 포함) 0부터 올라간다
+    function renderBrief(el, photos, zoneCount, itemCount) {
+        if (!photos.length) { el.innerHTML = ''; el.dataset.key = ''; return; }
+        const stock = stockOn(), low = stock ? stockOrderLines().lines.length : 0, week = weekFinds();
+        const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
+        const ago = (t) => { const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? '오늘' : d === 1 ? '어제' : `${d}일 전`; };
+        const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : '재고를 아직 안 셌어요 · 아래 <b>[재고]</b>로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
+        const tiles = [['구역', zoneCount], ['물건', itemCount], ['이번 주 찾음', week]].concat(stock ? [['부족', low, low > 0]] : [['사진', photos.length]]);
+        const key = JSON.stringify([tiles, foot]);
+        if (el.dataset.key === key) return; // 그대로면 다시 올리지 않는다
+        el.dataset.key = key;
+        el.innerHTML = `<div class="brief"><div class="brief-head"><span class="dot"></span>창고 브리핑</div><div class="brief-grid">${tiles.map(([t, n, hi]) => `<div class="brief-tile${hi ? ' is-low' : ''}"><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div><div class="brief-foot">${foot}</div></div>`;
+        const nums = [...el.querySelectorAll('[data-to]')], t0 = performance.now(), DUR = 700;
+        if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { nums.forEach(b => b.textContent = b.dataset.to); return; }
+        (function up(now) {
+            const p = Math.min(1, (now - t0) / DUR), e = 1 - Math.pow(1 - p, 3);
+            nums.forEach((b, i) => { const q = Math.max(0, Math.min(1, e * 1.15 - i * 0.05)); b.textContent = Math.round(+b.dataset.to * q); }); // 칸마다 살짝 늦게
+            if (p < 1) requestAnimationFrame(up); else nums.forEach(b => b.textContent = b.dataset.to);
+        })(t0);
+    }
+    // 날짜별 찾은 횟수 (브리핑의 "이번 주 찾음"용, 폰에만 저장, 2주 치)
+    const FIND_LOG_KEY = 'findLog';
+    function dayKey(t = new Date()) { return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; }
+    function logFindDay() {
+        let log = {}; try { log = JSON.parse(safeStorage.getItem(FIND_LOG_KEY) || '{}') || {}; } catch (e) {}
+        const k = dayKey(); log[k] = (log[k] || 0) + 1;
+        const keep = Object.keys(log).sort().slice(-14); log = Object.fromEntries(keep.map(d => [d, log[d]]));
+        try { safeStorage.setItem(FIND_LOG_KEY, JSON.stringify(log)); } catch (e) {}
+    }
+    function weekFinds() {
+        let log = {}; try { log = JSON.parse(safeStorage.getItem(FIND_LOG_KEY) || '{}') || {}; } catch (e) {}
+        const days = new Set(Array.from({ length: 7 }, (_, i) => dayKey(new Date(Date.now() - i * 86400000))));
+        return Object.entries(log).reduce((n, [d, c]) => n + (days.has(d) ? c : 0), 0);
+    }
     function activateHeroSearch(focused = false) {
         if (!isMobileDevice()) return;
         renderHeroHome();
