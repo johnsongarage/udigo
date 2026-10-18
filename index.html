@@ -1370,6 +1370,16 @@
         .voice-bars span:nth-child(3) { animation-delay: 0.3s; }
         @keyframes voice-bar { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
         @media (prefers-reduced-motion: reduce) { .icon-btn.is-listening, .voice-bars span { animation: none; } }
+        /* 🎙 말로 찾기 네온 판: 아래에서 올라와 파형이 출렁이고, 알아들은 말이 크게 찍힌다 (누르면 멈춤) */
+        #voiceSheet { position: fixed; left: 50%; bottom: 0; z-index: 1300; width: min(520px, 100%); transform: translate(-50%, 110%); transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 14px 18px calc(18px + env(safe-area-inset-bottom, 0px)); border-radius: 22px 22px 0 0; background: #0b1026; box-shadow: 0 -8px 30px rgba(11,16,38,0.45), inset 0 1px 0 rgba(70,235,255,0.35); color: #e6fdff; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        #voiceSheet.on { transform: translate(-50%, 0); }
+        #voiceSheet canvas { display: block; width: 100%; max-width: none; height: 74px; margin: 0; border: 0; border-radius: 0; }
+        .vs-text { min-height: 34px; margin-top: 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.3px; color: #fff; text-shadow: 0 0 12px rgba(70,235,255,0.7); word-break: keep-all; }
+        .vs-text.is-empty { font-size: 15px; font-weight: 600; color: rgba(200,245,255,0.75); text-shadow: none; }
+        .vs-text .caret { display: inline-block; width: 2px; height: 0.9em; margin-left: 3px; vertical-align: -0.08em; background: #46ebff; box-shadow: 0 0 8px #46ebff; animation: vs-caret 0.9s steps(1) infinite; }
+        @keyframes vs-caret { 50% { opacity: 0; } }
+        .vs-text.is-final { color: #ffd6f6; text-shadow: 0 0 14px rgba(255,90,217,0.85); }
+        .vs-hint { margin-top: 6px; font-size: 12.5px; color: rgba(200,245,255,0.6); }
 
         /* 찾기·새로 추가 입력줄 (상단 검색창과 같은 알약 모양) */
         .search-input-wrap.zm-find { width: 100%; margin-bottom: 10px; background: var(--card); }
@@ -3226,7 +3236,7 @@
     // ────────────────────────────────────────────────────────────
     const VOICE_SILENCE_MS = 7000;
     let activeVoice = null;
-    function startVoiceCapture({ btn, input, onFinal, onNoSpeech }) {
+    function startVoiceCapture({ btn, input, onFinal, onNoSpeech, onState, onText }) {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) { alert('음성 인식을 지원하지 않는 브라우저입니다.'); return; }
         if (activeVoice) { const same = activeVoice.btn === btn; activeVoice.manual = true; activeVoice.stop(); if (same) return; } // 듣는 중에 다시 누르면 정지
@@ -3246,6 +3256,7 @@
             btn.setAttribute('aria-label', on ? '듣기 멈추기' : prev.label);
             if (icon) icon.className = on ? 'ti ti-player-stop-filled' : 'ti ti-microphone';
             input.placeholder = on ? '듣고 있어요… 말씀하세요' : prev.placeholder;
+            if (onState) onState(on);
         };
 
         rec.onstart = () => {
@@ -3262,6 +3273,7 @@
                 if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
             }
             input.value = (finalText + interim).trim(); // 말하는 도중에도 입력칸에 바로 보여줌
+            if (onText) onText(input.value);
         };
         rec.onerror = (e) => { error = e.error; };
         rec.onend = () => {
@@ -3278,11 +3290,54 @@
         try { rec.start(); } catch (e) { activeVoice = null; setListening(false); }
     }
 
+    // 말로 찾기 네온 판: 말이 들릴 때마다(인식 결과가 올 때마다) 파형이 크게 출렁이고 잦아든다.
+    // (마이크 소리 크기를 따로 재려면 마이크를 한 번 더 열어야 해서, 안드로이드에서 음성 인식이 끊길 수 있어 쓰지 않는다)
+    const voiceSheet = (() => {
+        let raf = 0, energy = 0, t0 = 0, hideTimer = 0;
+        const el = () => document.getElementById('voiceSheet'), txt = () => document.getElementById('voiceSheetText');
+        const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        function draw(now) {
+            const cv = document.getElementById('voiceWave'), dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+            if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+            const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+            energy *= 0.94; const t = (now - t0) / 1000, amp = H * (0.08 + 0.36 * energy);
+            [[`rgba(255,90,217,0.55)`, 1.6, 0.9, 2.2], [`rgba(70,235,255,0.6)`, 2.3, 1.4, 1.6], [`#c9fbff`, 1.2, 2.0, 2.4]].forEach(([c, f, sp, lw], k) => {
+                ctx.beginPath();
+                for (let x = 0; x <= W; x += 3) {
+                    const u = x / W, env = Math.sin(Math.PI * u); // 가운데가 가장 크게 출렁이고 양끝은 잦아든다
+                    const y = H / 2 + Math.sin(u * Math.PI * 2 * f + t * sp * 3 + k) * amp * env * (k === 2 ? 0.7 : 1);
+                    x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+                }
+                ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.shadowColor = c; ctx.shadowBlur = 8; ctx.stroke();
+            });
+            raf = requestAnimationFrame(draw);
+        }
+        return {
+            show() {
+                clearTimeout(hideTimer); cancelAnimationFrame(raf);
+                const t = txt(); t.className = 'vs-text is-empty'; t.textContent = '듣고 있어요… 찾을 물건을 말씀하세요';
+                document.getElementById('voiceSheetHint').textContent = '누르면 멈춰요';
+                el().classList.add('on'); energy = 0.5; t0 = performance.now();
+                if (!reduce()) raf = requestAnimationFrame(draw);
+            },
+            text(s) { // 말하는 도중: 글자가 찍히며 파형이 튄다
+                const t = txt(); t.className = 'vs-text'; t.textContent = s; const c = document.createElement('span'); c.className = 'caret'; t.appendChild(c);
+                energy = Math.min(1, energy + 0.7);
+            },
+            done(final) { // 끝: 알아들은 말을 분홍으로 잠깐 보여 주고 내려간다
+                if (final) { const t = txt(); t.className = 'vs-text is-final'; t.textContent = final; document.getElementById('voiceSheetHint').textContent = '찾는 중…'; energy = 1; }
+                hideTimer = setTimeout(() => { el().classList.remove('on'); setTimeout(() => cancelAnimationFrame(raf), 350); }, final ? 650 : 0);
+            }
+        };
+    })();
     function startVoiceRecognition() {
         const searchInput = document.getElementById('searchBox');
+        let last = '';
         startVoiceCapture({
             btn: document.getElementById('micBtn'),
             input: searchInput,
+            onState: (on) => { if (on) voiceSheet.show(); else voiceSheet.done(last); },
+            onText: (t) => { last = t; voiceSheet.text(t); },
             onFinal: (text) => {
                 searchInput.value = text.replace(/(어디\s*있어|찾아줘|보여줘|검색해줘)$/, '').trim();
                 integratedSearch(true);
@@ -4712,7 +4767,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.18.3';
+    const APP_VERSION = '베타 2026.10.18.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -7009,5 +7064,10 @@
     </div>
 </div>
 
+<div id="voiceSheet" role="status" aria-live="polite" onclick="if (activeVoice) { activeVoice.manual = true; activeVoice.stop(); }">
+    <canvas id="voiceWave" aria-hidden="true"></canvas>
+    <div class="vs-text is-empty" id="voiceSheetText">듣고 있어요… 찾을 물건을 말씀하세요</div>
+    <div class="vs-hint" id="voiceSheetHint">누르면 멈춰요</div>
+</div>
 </body>
 </html>
