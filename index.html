@@ -2810,6 +2810,18 @@
     }
 
     // ─── AI 자동 분석 (메인) ──────────────────────────────────────────────────
+    // 칸 번호 순서: 위 줄부터, 한 줄 안에서는 왼쪽부터 (책 읽듯이).
+    // 세로로 절반 이상 겹치면 같은 줄로 본다 — 예전엔 가운데 높이가 30px만 달라도 다른 줄로 쳐서, 키 작은 칸이 먼저 번호를 받았다
+    function readingOrder(boxes) {
+        const rows = [];
+        [...boxes].sort((a, b) => a.y - b.y).forEach(b => {
+            const row = rows.find(r => Math.min(r.bottom, b.y + b.h) - Math.max(r.top, b.y) >= 0.5 * Math.min(b.h, r.minH));
+            if (row) { row.items.push(b); row.top = Math.min(row.top, b.y); row.bottom = Math.max(row.bottom, b.y + b.h); row.minH = Math.min(row.minH, b.h); }
+            else rows.push({ items: [b], top: b.y, bottom: b.y + b.h, minH: b.h });
+        });
+        rows.sort((a, b) => a.top - b.top);
+        return rows.flatMap(r => r.items.sort((a, b) => a.x - b.x));
+    }
     async function runAIAnalysis(dataId) {
         const data = imageList.find(d => d.id == dataId);
         if (!data || !data.imgData) { alert("이미지가 아직 업로드되지 않았습니다."); return; }
@@ -2850,16 +2862,7 @@
                 .filter(b => b.w > 25 && b.h > 25);
 
             // NMS 적용 및 정렬 (중심점 기준)
-            const filtered = applyNMS(rawBoxes, 0.45);
-            const ordered = filtered.sort((a, b) => {
-                const centerY_A = a.y + (a.h / 2);
-                const centerY_B = b.y + (b.h / 2);
-                const centerX_A = a.x + (a.w / 2);
-                const centerX_B = b.x + (b.w / 2);
-
-                if (Math.abs(centerY_A - centerY_B) > 30) return centerY_A - centerY_B;
-                return centerX_A - centerX_B;
-            });
+            const ordered = readingOrder(applyNMS(rawBoxes, 0.45));
 
             // 💡 2. 데이터 적용: 1부터 순서대로 이름 부여 (되돌리기로 이전 구역을 되살릴 수 있게 기록)
             saveHistory();
@@ -4645,7 +4648,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.17.8';
+    const APP_VERSION = '베타 2026.10.18.1';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
