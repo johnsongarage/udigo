@@ -2777,13 +2777,33 @@
         stage.appendChild(cv); stage.classList.add('ai-scanning');
         const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
         let edges = null; try { edges = neonEdgeImage(data.img); } catch (e) {}
-        const S = { t0: performance.now(), phase: 'scan', zones: [], stampAt: [], fadeAt: 0, skip: false, raf: 0, resolve: null, msg: 'AI가 구역을 찾는 중' };
+        const S = { t0: performance.now(), phase: 'scan', zones: [], stampAt: [], fadeAt: 0, skip: false, raf: 0, resolve: null, log: [] };
+        // 단계 자막: 실제로 하고 있는 일을 아래에서부터 한 줄씩 쌓는다 (끝난 줄은 ✓). at·done은 시각(ms) — 미래 시각이면 그때 나타난다
+        const step = (text, at = performance.now(), opt = {}) => { const prev = S.log[S.log.length - 1]; if (prev && !prev.done) prev.done = at; const l = { text, at, done: opt.done ? at : 0, detail: '', hi: !!opt.hi }; S.log.push(l); return l; };
+        step('사진 윤곽 읽는 중').done = S.t0 + 380; // 엣지 계산은 바로 끝나지만 읽을 틈을 준다
+        step('AI가 선반을 찾는 중', S.t0 + 380);
         const sc = W / base.width, PERIOD = 1500;
         cv.addEventListener('click', (e) => { e.stopPropagation(); S.skip = true; });
-        const label = (txt, a) => {
-            ctx.save(); ctx.globalAlpha = a; ctx.font = '700 14px sans-serif'; ctx.textAlign = 'center';
-            ctx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 10; ctx.fillStyle = '#d9fbff';
-            ctx.fillText(txt, W / 2, H - 16); ctx.restore();
+        const drawLog = (now, a) => {
+            const lines = S.log.filter(l => now >= l.at).slice(-4), lh = 18, x = 12;
+            ctx.save();
+            const bandH = lines.length * lh + 22, band = ctx.createLinearGradient(0, H - bandH, 0, H); // 아래쪽을 살짝 더 어둡게 (칸 위에 겹쳐도 글자가 읽히게)
+            band.addColorStop(0, 'rgba(4,8,22,0)'); band.addColorStop(0.35, `rgba(4,8,22,${0.55 * a})`); band.addColorStop(1, `rgba(4,8,22,${0.75 * a})`);
+            ctx.fillStyle = band; ctx.fillRect(0, H - bandH, W, bandH);
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            lines.forEach((l, i) => {
+                const y = H - 14 - (lines.length - 1 - i) * lh, inA = Math.min(1, (now - l.at) / 220), done = l.done && now >= l.done;
+                const old = (lines.length - 1 - i) * 0.22; // 위로 밀려난 줄은 흐리게
+                ctx.globalAlpha = a * inA * Math.max(0.35, 1 - old);
+                ctx.font = (l.hi ? '800 ' : '700 ') + '12.5px sans-serif';
+                ctx.shadowColor = l.hi ? NEON_ZONE_GLOW : `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 8;
+                const mark = done ? '✓' : '›', dots = done ? '' : '.'.repeat(1 + Math.floor(now / 330) % 3);
+                ctx.fillStyle = l.hi ? '#ffd6f6' : done ? 'rgba(160,240,255,0.85)' : '#e6fdff';
+                const yy = y + (1 - inA) * 6; // 살짝 올라오며 나타남
+                ctx.fillText(`${mark} ${l.text}${dots}`, x, yy);
+                if (done && l.detail) { const w = ctx.measureText(`${mark} ${l.text}`).width; ctx.fillStyle = l.hi ? '#ffd6f6' : '#ffb8ef'; ctx.fillText(`  ${l.detail}`, x + w, yy); }
+            });
+            ctx.restore();
         };
         function frame(now) {
             const el = now - S.t0;
@@ -2825,8 +2845,8 @@
                 ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(i + 1), cx, cy + 0.5);
                 ctx.restore();
             });
-            label(S.msg, all);
-            if (S.phase === 'stamp' && S.skip) S.stampAt = S.stampAt.map(t => Math.min(t, now));
+            drawLog(now, all);
+            if (S.phase === 'stamp' && S.skip) { S.stampAt = S.stampAt.map(t => Math.min(t, now)); S.log.forEach(l => { l.at = Math.min(l.at, now); if (l.done) l.done = Math.min(l.done, now); }); }
             if (S.phase === 'stamp' && now >= (S.stampAt[S.stampAt.length - 1] || now) + (S.skip ? 80 : 520)) { S.phase = 'fade'; S.fadeAt = now; }
             S.raf = requestAnimationFrame(frame);
         }
@@ -2834,13 +2854,18 @@
         if (!reduce) S.raf = requestAnimationFrame(frame);
         return {
             minWait: (ms) => new Promise(res => { const t0 = performance.now(); (function w() { if (S.skip || reduce || performance.now() - t0 >= ms) res(); else setTimeout(w, 50); })(); }),
-            // 찾은 구역(사진 좌표)을 하나씩 박고, 막을 걷은 뒤 끝난다
-            finish(zones) {
+            // 찾은 구역(사진 좌표)을 하나씩 박고, 막을 걷은 뒤 끝난다. info.raw: AI가 처음 낸 후보 수 (정리 단계 자막에 씀)
+            finish(zones, info = {}) {
                 if (reduce || !zones.length) { end(); return Promise.resolve(); }
                 return new Promise(res => {
-                    S.resolve = res; S.zones = zones; S.msg = `구역 ${zones.length}개를 찾았어요`;
-                    const now = performance.now(), gap = Math.max(60, Math.min(130, 1300 / zones.length));
-                    S.stampAt = zones.map((_, i) => now + 120 + i * gap); S.phase = 'stamp';
+                    S.resolve = res; S.zones = zones;
+                    const now = performance.now(), q = S.skip ? 0.25 : 1, raw = info.raw || zones.length;
+                    const ai = S.log[S.log.length - 1]; ai.done = now; ai.detail = `후보 ${raw}개`;
+                    step('작은 조각·겹친 칸 정리', now).detail = raw > zones.length ? `${raw - zones.length}개 걸러냄` : '깔끔해요';
+                    step('위 줄부터 번호 매기는 중', now + 420 * q);
+                    const t = now + 760 * q, gap = Math.max(60, Math.min(130, 1300 / zones.length));
+                    step(`구역 ${zones.length}개를 찾았어요`, t, { done: true, hi: true });
+                    S.stampAt = zones.map((_, i) => t + 120 + i * gap); S.phase = 'stamp';
                 });
             },
             abort: end
@@ -2913,7 +2938,7 @@
 
             saveData();
             render(data);
-            if (scan) { data.aiScanning = true; render(data); await scan.finish(data.zones); data.aiScanning = false; render(data); } // 구역이 하나씩 박히고 막이 걷힌다
+            if (scan) { data.aiScanning = true; render(data); await scan.finish(data.zones, { raw: rawBoxes.length }); data.aiScanning = false; render(data); } // 구역이 하나씩 박히고 막이 걷힌다
             expandZoneList(data.id);
 
             found = ordered.length;
@@ -4687,7 +4712,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.18.2';
+    const APP_VERSION = '베타 2026.10.18.3';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
