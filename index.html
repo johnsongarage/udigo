@@ -588,6 +588,11 @@
         .zone-note.narrow .it + .it, .zone-note.narrow .more { margin-top: 3px; padding-top: 3px; border-top: 1px dashed rgba(43,39,22,0.35); }
         .zone-note .more { color: #7a6a1e; font-weight: 500; }
         .zone-note.is-tiny { min-width: 2.8em; padding: 0 5px; font-size: 0.86em; line-height: 1.45; }
+        /* 부족 레이더: 기준보다 모자란 물건이 있는 칸의 쪽지는 주황 테두리가 숨 쉬듯 빛나고 "부족" 꼬리표 (투명도만 움직여 가볍게) */
+        .zone-note.is-low::before { content: ''; position: absolute; inset: -3px; border: 2px solid #ffa23a; border-radius: 4px 4px 9px 4px; box-shadow: 0 0 10px rgba(255,140,30,0.9); pointer-events: none; animation: low-breath 1.8s ease-in-out infinite; }
+        .zone-note.is-low::after { content: '부족'; position: absolute; top: -9px; right: -5px; padding: 1px 5px; border-radius: 8px; background: #ff8a1c; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,140,30,0.8); pointer-events: none; }
+        @keyframes low-breath { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .zone-note.is-low::before { animation: none; opacity: 0.8; } }
         .zone-note.is-focus { outline: 2.5px solid #ff6ee0; outline-offset: 1px; box-shadow: 0 0 12px rgba(255, 90, 217, 0.85); } /* 찾은 칸 쪽지도 네온 */
         .note-layer.has-focus .zone-note:not(.is-focus), .note-layer.has-focus .is-empty:not(.is-focus) { opacity: 0.3; }
         .zone-note-slot.is-empty { transition: opacity 0.45s ease; }
@@ -801,6 +806,8 @@
         #stockFab .ti { font-size: 16px; }
         /* 새 기능 알림: 한 번 열어 볼 때까지 연한 형광 테두리 */
         #stockFab.is-new { border: 1.5px solid #b5e61d; box-shadow: 0 0 0 3px rgba(181,230,29,0.28), var(--shadow-xs); }
+        #stockFab .fab-badge { min-width: 17px; height: 17px; margin-left: 2px; padding: 0 4px; border-radius: 9px; background: #ff8a1c; color: #fff; font-size: 11px; font-style: normal; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 8px rgba(255,140,30,0.75); }
+        #stockFab .fab-badge[hidden] { display: none; }
         #stockFab[hidden] { display: none; } /* .fab-btn의 display가 hidden을 덮어 꺼도 보였다 */
         body.editing #stockFab { display: none; }
         .print-name-line { flex: 1; min-width: 0; display: flex; }
@@ -2727,11 +2734,18 @@
     // AI가 일하는 동안: 사진이 어두워지고 레이더 선이 훑으며 물체 테두리(엣지)가 네온으로 떠오른다
     // → 결과가 오면 구역이 하나씩 "탁탁탁" 박힌다 → 막이 걷히고 원본 사진 위에 네온 테두리만 남는다. 화면을 누르면 건너뜀
     const NEON_ZONE = '#ff6ee0', NEON_ZONE_GLOW = 'rgba(255,90,217,0.95)', NEON_EDGE_RGB = [70, 235, 255];
-    function strokeNeon(ctx, z, k) {
+    // 재고가 기준보다 모자란 물건이 있는 칸은 주황 네온 (부족 레이더)
+    const NEON_LOW = '#ffa23a', NEON_LOW_GLOW = 'rgba(255,140,30,0.95)';
+    function zoneLow(z) {
+        if (safeStorage.getItem('stockMode') === '0') return false; // 재고 세기를 끈 사람
+        const n = v => typeof v === 'number' && isFinite(v);
+        return z.items.some(it => n(it.qty) && n(it.par) && it.qty < it.par);
+    }
+    function strokeNeon(ctx, z, k, low) {
         ctx.save();
-        ctx.shadowColor = NEON_ZONE_GLOW; ctx.shadowBlur = Math.max(8, 6 * k);
-        ctx.lineWidth = Math.max(2, 1.5 * k); ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(z.x, z.y, z.w, z.h);
-        ctx.shadowBlur = Math.max(3, 2 * k); ctx.lineWidth = Math.max(1, 0.7 * k); ctx.strokeStyle = '#fff3fd'; ctx.strokeRect(z.x, z.y, z.w, z.h); // 가운데 흰 심: 네온관처럼
+        ctx.shadowColor = low ? NEON_LOW_GLOW : NEON_ZONE_GLOW; ctx.shadowBlur = Math.max(8, 6 * k);
+        ctx.lineWidth = Math.max(2, 1.5 * k); ctx.strokeStyle = low ? NEON_LOW : NEON_ZONE; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.shadowBlur = Math.max(3, 2 * k); ctx.lineWidth = Math.max(1, 0.7 * k); ctx.strokeStyle = low ? '#fff4e3' : '#fff3fd'; ctx.strokeRect(z.x, z.y, z.w, z.h); // 가운데 흰 심: 네온관처럼
         ctx.restore();
     }
     // 사진의 테두리(밝기가 확 바뀌는 곳)만 뽑아 네온 색 투명 그림으로 (AI 아님, 폰 안에서 계산 · 작게 줄여서 빠르게)
@@ -3823,7 +3837,7 @@
         const sel = showSearchArrow && activeZone && data.zones.includes(activeZone) ? activeZone : null;
         const focus = sel && !searchFlyIntro(data) ? sel : null, dimOthers = !!sel && !pending;
         const fi = focus ? data.zones.indexOf(focus) : -1;
-        const key = [stageW, fs, JSON.stringify(data.zones.map(z => [z.x, z.y, z.w, z.h, z.items.map(i => i.name)]))].join('|');
+        const key = [stageW, fs, JSON.stringify(data.zones.map(z => [z.x, z.y, z.w, z.h, z.items.map(i => i.name), zoneLow(z)]))].join('|');
         layer.classList.toggle('has-focus', dimOthers);
         if (layer.dataset.key === key) { // 쪽지는 그대로, 고른 칸 표시만 바꾼다 (검색할 때마다 쪽지를 다시 만들고 재느라 멈칫했다)
             if (layer.dataset.focus !== String(fi)) {
@@ -3853,7 +3867,7 @@
             const tiny = z.h * s - padY * 2 < lineH; // 칸이 쪽지 한 줄보다 낮으면 작은 쪽지를 칸 가운데에 걸쳐 붙인다
             slot.className = 'zone-note-slot' + (tiny ? ' is-tiny' : ''); if (tiny) slot.style.paddingTop = '';
             const note = document.createElement('div');
-            note.className = 'zone-note' + (tiny ? ' is-tiny' : '') + (z === focus ? ' is-focus' : '');
+            note.className = 'zone-note' + (tiny ? ' is-tiny' : '') + (z === focus ? ' is-focus' : '') + (zoneLow(z) ? ' is-low' : '');
             const fill = (lines, more) => note.replaceChildren(num, ...lines.map((t, i) => { const l = document.createElement('div'); l.textContent = t; l.className = more && i === lines.length - 1 ? 'more' : 'it'; return l; }));
             slot.appendChild(note);
             // 한 줄짜리: 첫 물건 이름만 말줄임하고 "+N"은 끝까지 남긴다
@@ -4312,7 +4326,7 @@
                     // 네온 테두리: 어두운 바탕선 위에 빛나는 선 (흰 수납장·어두운 창고 어디서든 보이게)
                     const k = displayScale(canvas);
                     ctx.lineWidth = Math.max(5, 3 * k); ctx.strokeStyle = 'rgba(16,0,28,0.55)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
-                    strokeNeon(ctx, z, k);
+                    strokeNeon(ctx, z, k, zoneLow(z));
                 } else if (isEditMode && !pickMode && !isHovered && z !== activeZone) {
                     // 고치기 기본 구역: 2px 고정이면 폰에서 1px도 안 돼 사진에 묻혔다 → 화면 배율만큼 굵게 + 어두운 테두리 위에 색 선
                     const k = displayScale(canvas);
@@ -4577,6 +4591,7 @@
         try { const dataToSave = imageList.map(data => ({ id: data.id, title: data.title, imgData: (data.img && data.img.src) ? data.img.src : null, zones: data.zones })); safeStorage.setItem('savedSystemData', JSON.stringify(dataToSave)); } catch (e) {}
         try { safeStorage.setItem('baseItems', JSON.stringify(baseItems)); } catch(e) {}
         try { safeStorage.setItem('dataChangedAt', String(Date.now())); } catch(e) {} // 마지막 백업 뒤에 바뀐 게 있는지 (백업 안내 띠)
+        try { syncStockBadge(); } catch (e) {} // [재고] 버튼의 모자란 수
     }
     // 입력칸 Enter/“새로 추가” 줄: 목록에 같은 이름이 있으면 체크만, 없으면 새 품목으로 만들고 체크
     function addNewItem() {
@@ -4767,7 +4782,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.18.4';
+    const APP_VERSION = '베타 2026.10.18.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6788,6 +6803,57 @@
     function syncStockRow() {
         const el = document.getElementById('stockRowText'); if (el) el.textContent = stockOn() ? '켜짐' : '꺼짐';
         const fab = document.getElementById('stockFab'); if (fab) { fab.hidden = !stockOn(); fab.classList.toggle('is-new', safeStorage.getItem('stockSeen') !== '1'); }
+        syncStockBadge();
+    }
+    // [재고] 버튼의 주황 숫자 = 발주 목록에 오를 물건 수 (저장할 때마다 다시 센다)
+    function syncStockBadge() {
+        const fab = document.getElementById('stockFab'); if (!fab) return;
+        let em = fab.querySelector('.fab-badge'); if (!em) { em = document.createElement('em'); em.className = 'fab-badge'; fab.appendChild(em); }
+        const n = stockOn() ? stockOrderLines().lines.length : 0;
+        em.textContent = n; em.hidden = !n; fab.setAttribute('aria-label', n ? `재고 세기 · 모자란 물건 ${n}개` : '재고 세기');
+    }
+    // 부족 레이더: 모자란 칸마다 주황 고리가 두 번 퍼진다 (사진 위에 잠깐 얹었다 걷는 그림)
+    function stockRadar() {
+        if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        stockPhotos().forEach(d => {
+            const low = d.zones.filter(zoneLow), base = d.canvas, stage = d.noteStage;
+            if (!low.length || !base || !stage || !base.clientWidth) return;
+            const W = base.clientWidth, H = base.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1), sc = W / base.width;
+            const cv = document.createElement('canvas'); cv.className = 'ai-scan';
+            cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+            Object.assign(cv.style, { left: base.offsetLeft + 'px', top: base.offsetTop + 'px', width: W + 'px', height: H + 'px', pointerEvents: 'none' });
+            stage.appendChild(cv);
+            const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+            const t0 = performance.now(), DUR = 2000, LIFE = 1100;
+            (function frame(now) {
+                const el = now - t0; ctx.clearRect(0, 0, W, H);
+                if (el > DUR) { cv.remove(); return; }
+                const veil = Math.sin(Math.PI * Math.min(1, el / DUR)) * 0.32; // 살짝 어두워졌다 걷힌다
+                ctx.fillStyle = `rgba(4,8,22,${veil})`; ctx.fillRect(0, 0, W, H);
+                low.forEach((z, i) => {
+                    const x = z.x * sc, y = z.y * sc, w = z.w * sc, h = z.h * sc, cx = x + w / 2, cy = y + h / 2, maxR = Math.max(w, h) * 0.75 + 18;
+                    ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = `rgba(0,0,0,${veil ? 1 : 0})`; ctx.fillRect(x, y, w, h); ctx.restore(); // 부족한 칸은 밝게
+                    [0, 650].forEach(d0 => {
+                        const age = el - d0 - i * 90; if (age < 0 || age > LIFE) return;
+                        const p = age / LIFE, r = 6 + maxR * easeOutCubic(p);
+                        ctx.save(); ctx.strokeStyle = NEON_LOW; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                        ctx.globalAlpha = (1 - p) * 0.25; ctx.lineWidth = 8; ctx.stroke();
+                        ctx.globalAlpha = (1 - p) * 0.9; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+                    });
+                    const flash = Math.max(0, 1 - el / 700);
+                    if (flash) { ctx.fillStyle = `rgba(255,150,40,${0.28 * flash})`; ctx.fillRect(x, y, w, h); }
+                });
+                requestAnimationFrame(frame);
+            })(t0);
+        });
+    }
+    // 발주 목록 → [지도에서 보기]: 창을 닫고 첫 부족 칸이 있는 사진으로 가서 레이더
+    function showLowOnMap() {
+        closeStock(true);
+        const d = stockPhotos().find(p => p.zones.some(zoneLow));
+        if (!d) return;
+        const box = d.zoomBox || d.canvas; if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(stockRadar, 550);
     }
     function toggleStockMode() {
         const on = !stockOn();
@@ -6826,7 +6892,7 @@
         const all = [...document.querySelectorAll(`#stockList input[data-f="${input.dataset.f}"]`)], next = all[all.indexOf(input) + 1];
         if (next) { next.focus(); next.select(); } else input.blur();
     });
-    function closeStock() {
+    function closeStock(noRadar) {
         if (document.getElementById('stockModal').style.display !== 'flex') return;
         flushStockSave();
         const m = document.getElementById('stockModal'); m.classList.remove('is-kb'); m.style.top = ''; m.style.height = '';
@@ -6834,6 +6900,8 @@
         document.getElementById('stockBackdrop').style.display = 'none';
         unlockPageScroll();
         imageList.forEach(d => render(d)); // 칩의 수량 숫자 새로
+        syncStockBadge();
+        if (noRadar !== true && stockOrderLines().lines.length) setTimeout(stockRadar, 250); // 닫으면 모자란 칸이 지도에서 한 번 울린다
     }
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStock(); });
     // 처음 안내 카드: 한 번 [알겠어요] 하면 안 나옴, 제목 옆 ? 로 다시
@@ -6896,7 +6964,7 @@
             list.innerHTML = lines.length ? lines.map(o => `<div class="stock-order-row"><span class="n">+${o.need}</span><span class="t">${escapeHtml(o.name)}<small>지금 ${o.qty} / 기준 ${o.par} · ${escapeHtml(o.where.join(', '))}</small></span></div>`).join('')
                 + (uncounted ? `<div class="stock-empty" style="padding: 12px 8px;">기준은 있는데 아직 안 센 물건 ${uncounted}개는 빠졌어요.</div>` : '')
                 : `<div class="stock-empty">모자란 물건이 없어요.<br>${uncounted ? `기준은 있는데 아직 안 센 물건이 ${uncounted}개 있어요. [세기]에서 세 주세요.` : '[세기]에서 물건마다 <b>기준</b>(이만큼은 있어야 함)과 지금 수량을 적으면 여기 모여요.'}</div>`;
-            actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="setStockTab('count')">세기로</button>
+            actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="${lines.length ? 'showLowOnMap()' : "setStockTab('count')"}">${lines.length ? '<i class="ti ti-radar-2"></i> 지도에서 보기' : '세기로'}</button>
                 <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="shareStockOrder()"${lines.length ? '' : ' disabled'}><i class="ti ti-send"></i> 보내기</button>`;
         }
     }
@@ -6995,6 +7063,7 @@
             loads.reduce((prev, load, i) => prev.then(() => load).then(img => {
                 const s = saved[i]; createNewCanvasElement({ img, zones: s.zones, id: s.id, title: s.title, imgData: s.imgData });
             }), Promise.resolve()).then(() => {
+                syncStockBadge();
                 // 첫 화면의 업종별 예시 카드로 들어왔으면 그 사진으로 바로 간다
                 let focus = null; try { focus = sessionStorage.getItem('sampleFocus'); sessionStorage.removeItem('sampleFocus'); } catch (e) {}
                 if (focus && imageList.some(d => String(d.id) === focus)) { deactivateHeroSearch(); setTimeout(() => showPhoto(focus, true), 50); }
