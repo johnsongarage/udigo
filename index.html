@@ -1414,14 +1414,16 @@
 
         /* 찾기·새로 추가 입력줄 (상단 검색창과 같은 알약 모양) */
         .search-input-wrap.zm-find { width: 100%; margin-bottom: 10px; background: var(--card); }
-        .zm-industry { margin: 0 0 14px; padding: 12px; border-radius: var(--radius-sm); background: var(--bg); border: 1px solid var(--border); }
+        .zm-industry { position: relative; margin: 0 0 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg); border: 1px solid var(--border); }
         .zm-industry[hidden] { display: none; }
-        .zm-industry-q { font-size: 13px; line-height: 1.5; color: var(--text2); margin-bottom: 10px; }
-        .zm-industry-q b { display: block; font-size: 15px; color: var(--text); }
-        .zm-industry-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .zm-industry-q { font-size: 12.5px; line-height: 1.4; color: var(--text2); margin: 0 60px 8px 0; }
+        .zm-industry-q b { color: var(--text); }
+        .zm-industry-chips { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px; } /* 한 줄로 옆으로 밀어 보기 */
+        .zm-industry-chips::-webkit-scrollbar { display: none; }
+        .zm-industry-chips button { flex: none; }
         .zm-industry-chips button { min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 18px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
         .zm-industry-chips button:active { transform: scale(0.96); }
-        .zm-industry-skip { display: block; margin: 10px auto 0; padding: 6px 10px; border: 0; background: none; color: var(--text2); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+        .zm-industry-skip { position: absolute; top: 6px; right: 6px; margin: 0; padding: 4px 8px; border: 0; background: none; color: var(--text2); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
         .zm-status { font-size: 12px; color: var(--text2); text-align: center; line-height: 1.5; margin: -2px 0 10px; }
         .zm-status:empty { display: none; }
         .zm-add-new {
@@ -1473,17 +1475,23 @@
         .zm-body .zm-item .ti { font-size: 15px; color: var(--text3); }
         .zm-body .zm-x { display: none; }
         .zm-body .zm-memo { display: none; }
-        /* 담긴 칩: 진하게, 메모는 이름 옆 작은 글씨, ×로 빼기 */
-        .zm-body .zm-item.is-checked { background: var(--accent); border-color: var(--accent); }
-        .zm-body .zm-item.is-checked .zm-item-name { color: var(--on-accent); font-weight: 700; }
+        /* 담긴 칩: 연한 테마색 바탕 + 진한 이름, 옆에 작은 표시만 (★·빨간 점 유통기한·주황 점 부족·✎ 메모). 자세한 건 눌러서 펼친 카드에 */
+        .zm-body .zm-item.is-checked { background: var(--accent-soft); border-color: rgba(var(--accent-rgb),0.45); }
+        .zm-body .zm-item.is-checked .zm-item-name { color: var(--accent); font-weight: 700; }
         .zm-body .zm-item.is-checked .zm-plus { display: none; }
-        .zm-body .zm-item.is-checked .zm-x { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin: 0 -4px 0 2px; border-radius: 50%; background: rgba(255,255,255,0.18); color: var(--on-accent); font-size: 17px; line-height: 1; } /* 아이콘 글꼴이 늦게 떠도 보이게 글자 × */
-        .zm-body .zm-item.is-checked .ti { color: var(--on-accent); opacity: 0.75; }
-        .zm-body .zm-item.is-checked .zm-memo:not(:empty) { display: inline; font-size: 12px; color: var(--on-accent); opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 12em; }
-        .zm-body .zm-item.is-checked .zm-memo:not(:empty)::before { content: '· '; }
+        .zm-body .zm-item.is-checked .zm-x { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin: 0 -4px 0 2px; border-radius: 50%; background: rgba(0,0,0,0.06); color: var(--text2); font-size: 17px; line-height: 1; } /* 아이콘 글꼴이 늦게 떠도 보이게 글자 × */
+        .zm-body .zm-item.is-checked .ti { color: var(--text3); }
+        .zm-marks { display: inline-flex; align-items: center; gap: 3px; }
+        .zm-item:not(.is-checked) .zm-marks { display: none; }
+        .zm-mk { display: inline-block; width: 7px; height: 7px; border-radius: 50%; font-style: normal; }
+        .zm-mk.is-exp { background: #e8384a; }
+        .zm-mk.is-low { background: #ff8a1c; }
+        .zm-mk.is-memo { display: none; width: auto; height: auto; border-radius: 0; font-size: 12px; line-height: 1; color: var(--text3); }
+        .zm-item.has-memo .zm-mk.is-memo { display: inline; }
         .zm-body .zm-item .cmt, .zm-body .zm-item.is-checked .cmt { display: none; }
         /* 담긴 칩을 누르면 메모 칸이 열린다 */
-        .zm-body .zm-item.memo-open { flex-basis: 100%; border-radius: var(--radius-md); }
+        .zm-body .zm-item.memo-open { flex-basis: 100%; border-radius: var(--radius-md); background: var(--card); border: 1.5px solid rgba(var(--accent-rgb),0.6); box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.08)); }
+        .zm-body .zm-item.memo-open .zm-marks, .zm-body .zm-item.memo-open .zm-x { display: none; } /* 빼기는 카드 아래 글자 버튼으로 */ /* 펼치면 아래 칸들이 다 보여 준다 */
         /* 재고를 켠 사람만: 메모 칸 아래 기준 수량 (재고 창의 "기준"과 같은 값) */
         .zm-par { display: none; }
         .zm-body .zm-item.memo-open .zm-par { display: flex; align-items: center; gap: 8px; margin: -4px 10px 10px; font-size: 12.5px; color: var(--on-accent); white-space: nowrap; }
@@ -1493,17 +1501,25 @@
         .zl-exp { margin-left: 4px; padding: 0 5px; border-radius: 7px; background: #ffe3e6; color: #d0283a; font-size: 11px; font-weight: 800; }
         .zl-exp.is-over { background: #d0283a; color: #fff; }
         /* 구역 창: 담긴 물건을 누르면 펼쳐지는 칸에 [★ 신입용 고정]·유통기한 */
+        .zm-head-hint { margin-left: 4px; font-size: 11.5px; font-weight: 500; color: var(--text3); }
         .zm-extra { display: none; }
-        .zm-body .zm-item.memo-open .zm-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -4px 10px 10px; font-size: 12.5px; color: var(--on-accent); }
-        .zm-pin { min-height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 17px; background: var(--card); color: var(--text2); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .zm-body .zm-item.memo-open .zm-extra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 0 10px 6px; }
+        .zm-f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text3); }
+        .zm-f input { height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 13.5px; box-sizing: border-box; }
+        .zm-f-par input { width: 70px; text-align: center; }
+        .zm-card-foot { display: none; }
+        .zm-body .zm-item.memo-open .zm-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 10px 10px; }
+        .zm-remove { padding: 6px 4px; border: 0; background: none; color: var(--danger); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+        .zm-pin { min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 17px; background: var(--card); color: var(--text2); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
         .zm-pin.is-on { background: #fff3c4; border-color: #e0a800; color: #8a6400; }
+        .zm-pin.is-on::first-letter { color: #e0a800; }
         .zm-exp { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
         .zm-exp input { height: 34px; padding: 0 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; box-sizing: border-box; }
         .zm-pinv { margin-right: 2px; color: #e0a800; font-size: 12px; }
         .zm-expv { margin-left: 4px; padding: 0 5px; border-radius: 7px; background: #ffe3e6; color: #d0283a; font-size: 11px; font-weight: 800; white-space: nowrap; }
         .zm-parv { font-size: 11px; color: var(--text3); white-space: nowrap; }
         .zm-body .zm-item.is-checked .zm-parv { color: var(--on-accent); opacity: 0.75; margin-left: 4px; }
-        .zm-body .zm-item.memo-open .cmt { display: block; width: calc(100% - 20px); margin: 0 10px 10px; background: var(--card); color: var(--text); }
+        .zm-body .zm-item.memo-open .cmt { display: block; width: calc(100% - 20px); margin: 0 10px 8px; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
         .zm-save { flex: 1; }
         /* 메모 쓰기: 담긴 물건의 메모·기준 칸에 키보드가 올라오면 그 물건 하나만 남기고 나머지는 잠깐 접는다 (좁은 화면에서 메모 칸이 안 보였다) */
         .zm-memo-done { display: none; }
@@ -1519,7 +1535,7 @@
         .zm-more-suggest { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 40px; margin-top: 10px; border: 1px dashed var(--border); border-radius: var(--radius-md); background: none; color: var(--text2); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
         .zm-more-suggest[hidden] { display: none; }
         /* 메모가 있는 칩: 노란 테두리 + 쪽지 아이콘으로 한눈에 */
-        .zm-body .zm-item.is-checked.has-memo { box-shadow: 0 0 0 2.5px #ffd84d; }
+
         .zm-body .zm-memo-ic { display: none; }
         .zm-body .zm-item.has-memo .zm-memo-ic { display: inline; color: #ffd84d; opacity: 1; font-size: 15px; }
         .zl-chip.has-memo { background: var(--bg); border-color: var(--border); } /* 노랑은 사진 쪽지·찾은 칸에만. 메모는 칩 안 글자로 보인다 */
@@ -2058,12 +2074,6 @@
     </div>
 
     <div class="zm-body">
-        <!-- 업종 한 번 묻기: 첫 구역의 물건 창에서 (고르거나 건너뛰면 다시 안 물음, 설정에서 바꿀 수 있음) -->
-        <div id="industryAsk" class="zm-industry" hidden>
-            <div class="zm-industry-q"><b>어떤 가게예요?</b> 고르면 자주 쓰는 물건을 바로 눌러 넣을 수 있어요</div>
-            <div id="industryAskChips" class="zm-industry-chips"></div>
-            <button type="button" class="zm-industry-skip" onclick="skipIndustryAsk()">건너뛰기 · 직접 입력할게요</button>
-        </div>
         <!-- 맨 위: 검색(찾기·새로 추가) — 가장 많이 하는 일이 "이름 치고 담기"라서. 스크롤해도 위에 붙어 있다 -->
         <div class="zm-find-top">
         <!-- 상단 검색창과 같은 모양: 입력(찾기·새로 추가) + 돋보기 + 가져오기 버튼들 -->
@@ -2082,11 +2092,17 @@
         </div>
         <!-- 담긴 물건(눌러서 메모, ×로 빼기) / 아래: 자주 쓰는 물건 후보(눌러서 담기, 처음엔 8개만) -->
         <div class="zm-section-head">
-            <span>이 구역에 있는 것</span>
+            <span>이 구역에 있는 것 <small class="zm-head-hint">누르면 편집</small></span>
             <span id="zoneItemCount" class="zm-count"></span>
         </div>
         <div id="zmPicked" class="zm-chips is-picked" data-empty="아직 없어요 · 위에서 찾거나 아래에서 눌러 담아요"></div>
         <div class="zm-section-head zm-add-head"><span>자주 쓰는 물건</span></div>
+        <!-- 업종 한 번 묻기: 추천 물건 칸 위에 한 줄로 (예전엔 창 맨 위를 반쯤 차지해 이 구역 물건이 밀려 안 보였다) (고르거나 건너뛰면 다시 안 물음, 설정에서 바꿀 수 있음) -->
+        <div id="industryAsk" class="zm-industry" hidden>
+            <div class="zm-industry-q"><b>가게 종류</b>를 고르면 아래 추천 물건이 맞춰져요</div>
+            <div id="industryAskChips" class="zm-industry-chips"></div>
+            <button type="button" class="zm-industry-skip" onclick="skipIndustryAsk()">건너뛰기</button>
+        </div>
         <div id="itemList" class="zm-chips"></div>
         <button type="button" id="zmMoreSuggest" class="zm-more-suggest" onclick="zmShowAllSuggest = true; applyZoneItemFilter();" hidden>더보기 <i class="ti ti-chevron-down"></i></button>
     </div>
@@ -3553,6 +3569,7 @@
             z.items.forEach(it => state.set(it.name, { checked: true, comment: it.comment || '', par: typeof it.par === 'number' ? String(it.par) : '', pin: !!it.pin, exp: it.exp || '' }));
         }
         const withStock = stockOn();
+        const lowNames = new Set(withStock ? z.items.filter(it => zoneLow({ items: [it] })).map(it => it.name) : []); // 칩의 주황 점
         // 품목 목록에 없는 물건이 구역에 들어 있어도 저장할 때 사라지지 않도록 함께 보여준다.
         // 담지 않은 후보는 지금 품목 목록(baseItems)만 — 업종을 고른 뒤 예전 기본 품목이 이 구역에만 남아 보이다가 다음 구역에선 사라져 보였다
         const names = [...new Set([...z.items.map(it => it.name), ...baseItems, ...[...state.keys()].filter(n => state.get(n).checked)])];
@@ -3566,12 +3583,15 @@
                         <label class="zm-item-main" onclick="zmChipClick(event, this)">
                             <input type="checkbox" class="cb" value="${escapeHtml(name)}" ${st.checked ? 'checked' : ''} onchange="toggleCommentField(this)">
                             <span class="zm-check" aria-hidden="true"></span>
-                            <i class="ti ti-note zm-memo-ic" aria-label="메모 있음"></i>${st.pin ? '<small class="zm-pinv" aria-label="신입용 고정">★</small>' : ''}<span class="zm-item-name">${escapeHtml(name)}</span>${st.exp && expState(st) ? `<small class="zm-expv">${expLabel(st)}</small>` : ''}<small class="zm-memo">${escapeHtml(st.comment)}</small>${withStock && st.par !== '' ? `<small class="zm-parv">기준 ${escapeHtml(st.par)}</small>` : ''}
+                            ${st.pin ? '<small class="zm-pinv" aria-label="즐겨찾기">★</small>' : ''}<span class="zm-item-name">${escapeHtml(name)}</span><span class="zm-marks">${st.exp && expState(st) ? `<i class="zm-mk is-exp" title="유통기한 ${expLabel(st)}"></i>` : ''}${lowNames.has(name) ? '<i class="zm-mk is-low" title="부족"></i>' : ''}<i class="zm-mk is-memo" aria-label="메모 있음">✎</i></span><small class="zm-memo">${escapeHtml(st.comment)}</small>
                             <i class="ti ti-plus zm-plus" aria-hidden="true"></i><span class="zm-x" title="빼기" aria-label="빼기">×</span>
                         </label>
                         <input type="text" class="cmt" placeholder="세부 위치 메모 (예: 맨 윗칸 왼쪽)" value="${escapeHtml(st.comment)}" enterkeyhint="done" oninput="const it = this.closest('.zm-item'); it.querySelector('.zm-memo').textContent = this.value; it.classList.toggle('has-memo', !!this.value.trim())">
-                        <div class="zm-extra"><button type="button" class="zm-pin${st.pin ? ' is-on' : ''}" aria-pressed="${st.pin ? 'true' : 'false'}" onclick="toggleZmPin(this)">★ 신입용 고정</button><label class="zm-exp">유통기한 <input type="date" class="exp" value="${escapeHtml(st.exp || '')}" aria-label="${escapeHtml(name)} 유통기한"></label></div>
-                        ${withStock ? `<label class="zm-par">기준 수량 <input type="number" class="par" inputmode="numeric" min="0" placeholder="–" value="${escapeHtml(st.par || '')}" aria-label="${escapeHtml(name)} 기준 수량"><span>모자라면 발주 목록에</span></label>` : ''}
+                        <div class="zm-extra">
+                            <label class="zm-f"><span>유통기한</span><input type="date" class="exp" value="${escapeHtml(st.exp || '')}" aria-label="${escapeHtml(name)} 유통기한"></label>
+                            ${withStock ? `<label class="zm-f zm-f-par"><span>기준 수량</span><input type="number" class="par" inputmode="numeric" min="0" placeholder="–" value="${escapeHtml(st.par || '')}" aria-label="${escapeHtml(name)} 기준 수량 (모자라면 발주 목록에)"></label>` : ''}
+                        </div>
+                        <div class="zm-card-foot"><button type="button" class="zm-pin${st.pin ? ' is-on' : ''}" aria-pressed="${st.pin ? 'true' : 'false'}" onclick="toggleZmPin(this)">${st.pin ? '★' : '☆'} 즐겨찾기</button><button type="button" class="zm-remove" onclick="zmRemoveItem(this)">이 구역에서 빼기</button></div>
                     </div>`;
         };
         document.getElementById('zmPicked').innerHTML = names.filter(n => (state.get(n) || {}).checked).map(chip).join('');
@@ -4546,9 +4566,10 @@
         else { item.classList.remove('memo-open'); document.getElementById('itemList').prepend(item); }
         updateZoneItemCount(); applyZoneItemFilter();
     }
-    // ★ 신입용 고정: 지도 쪽지에 맨 앞 ★로, 첫 화면 '고정' 칩으로 늘 보인다 (구역 창을 닫을 때 저장)
+    // ★ 즐겨찾기(신입용으로도): 지도 쪽지 맨 앞에, 첫 화면 '즐겨' 칩으로 늘 보인다 (구역 창을 닫을 때 저장)
+    function zmRemoveItem(btn) { const cb = btn.closest('.zm-item').querySelector('.cb'); cb.checked = false; toggleCommentField(cb); }
     function toggleZmPin(btn) {
-        const on = btn.classList.toggle('is-on'); btn.setAttribute('aria-pressed', String(on));
+        const on = btn.classList.toggle('is-on'); btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? '★ 즐겨찾기' : '☆ 즐겨찾기';
         const main = btn.closest('.zm-item').querySelector('.zm-item-main'); let star = main.querySelector('.zm-pinv');
         if (on && !star) { star = document.createElement('small'); star.className = 'zm-pinv'; star.textContent = '★'; main.querySelector('.zm-item-name').before(star); }
         else if (!on && star) star.remove();
@@ -4559,6 +4580,7 @@
         // 체크박스 자신에게 전달된 클릭(라벨이 대신 보내는 것)은 건드리지 않는다 — 막으면 ×로 빼기가 되돌려졌다
         if (e.target.matches('input') || !item.classList.contains('is-checked') || e.target.closest('.zm-x')) return;
         e.preventDefault();
+        if (!item.classList.contains('memo-open')) document.querySelectorAll('#zmPicked .zm-item.memo-open').forEach(o => o.classList.remove('memo-open')); // 한 번에 하나만 펼친다
         const open = item.classList.toggle('memo-open');
         if (open) { const c = item.querySelector('.cmt'); setTimeout(() => c.focus(), 0); }
     }
@@ -4858,7 +4880,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.9';
+    const APP_VERSION = '베타 2026.10.19.11';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5276,7 +5298,7 @@
         const chip = (q, extra = '') => `<button type="button" class="hero-chip" data-q="${escapeHtml(q)}" onclick="applySearchSuggestion(this)">${escapeHtml(q)}${extra}</button>`;
         let html = '';
         const pinned = [...new Set(photos.flatMap(d => d.zones.flatMap(z => z.items.filter(i => i.pin).map(i => i.name))))].slice(0, 8);
-        if (pinned.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">고정</span>${pinned.map(n => `<button type="button" class="hero-chip" data-q="${escapeHtml(n)}" onclick="applySearchSuggestion(this)">★ ${escapeHtml(n)}</button>`).join('')}</div>`; // 신입용 고정 물건 (사장님이 정해 둔 것)
+        if (pinned.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">즐찾</span>${pinned.map(n => `<button type="button" class="hero-chip" data-q="${escapeHtml(n)}" onclick="applySearchSuggestion(this)">★ ${escapeHtml(n)}</button>`).join('')}</div>`; // 신입용 고정 물건 (사장님이 정해 둔 것)
         if (history.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">최근</span>${history.map(h => chip(h)).join('')}</div>`;
         if (frequent.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">자주</span>${frequent.map(([n, c]) => chip(n, ` <small>${c}회</small>`)).join('')}</div>`;
         quick.innerHTML = html || '<p class="hero-quick-tip">물건 이름, 초성(ㅅㄹ), 말로도 찾을 수 있어요</p>';
