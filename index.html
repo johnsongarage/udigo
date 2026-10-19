@@ -460,7 +460,8 @@
             .brief-foot { position: relative; margin-top: 8px; font-size: 12px; color: var(--text2); }
             :root[data-theme="champagne"] .brief { --brief-rgb: 200, 169, 110; } /* 샴페인은 주 색이 짙은 회색이라 격자·빛은 금색으로 */
             .brief-foot b { color: var(--text); font-weight: 700; }
-            .brief-foot b.brief-exp { color: #d0283a; }
+            .brief-exp-line { display: block; margin-top: 3px; color: #d0283a; font-weight: 700; }
+            .brief-exp-line b { color: #d0283a !important; }
             @media (prefers-reduced-motion: reduce) { .brief::after, .brief-head .dot { animation: none; } }
             .hero-quick { flex-direction: column; gap: 10px; margin-top: 6px; }
             .hero-quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -610,10 +611,13 @@
         .zone-note.is-tiny { min-width: 2.8em; padding: 0 5px; font-size: 0.86em; line-height: 1.45; }
         /* 부족 레이더: 기준보다 모자란 물건이 있는 칸의 쪽지는 주황 테두리가 숨 쉬듯 빛나고 "부족" 꼬리표 (투명도만 움직여 가볍게) */
         .zone-note.is-low::before { content: ''; position: absolute; inset: -3px; border: 2px solid #ffa23a; border-radius: 4px 4px 9px 4px; box-shadow: 0 0 10px rgba(255,140,30,0.9); pointer-events: none; opacity: 0.85; animation: low-breath 1.8s ease-in-out 3; } /* 세 번만 숨 쉬고 가만히 (계속 깜빡이면 지도 보기가 피곤했다) */
-        .zone-note.is-low::after { content: '부족'; position: absolute; top: -9px; right: -5px; padding: 1px 5px; border-radius: 8px; background: #ff8a1c; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,140,30,0.8); pointer-events: none; }
+        .zone-note.is-low::after { content: '부족'; position: absolute; bottom: calc(100% + 1px); right: -2px; padding: 1px 5px; border-radius: 8px; background: #ff8a1c; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,140,30,0.8); pointer-events: none; }
         .zone-note.is-exp::before { content: ''; position: absolute; inset: -3px; border: 2px solid #ff4d5e; border-radius: 4px 4px 9px 4px; box-shadow: 0 0 10px rgba(255,60,80,0.9); pointer-events: none; opacity: 0.85; animation: low-breath 1.8s ease-in-out 3; }
-        .zone-note.is-exp::after { content: '임박'; position: absolute; top: -9px; right: -5px; padding: 1px 5px; border-radius: 8px; background: #e8384a; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,60,80,0.8); pointer-events: none; white-space: nowrap; }
+        .zone-note.is-exp::after { content: '임박'; position: absolute; bottom: calc(100% + 1px); right: -2px; padding: 1px 5px; border-radius: 8px; background: #e8384a; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,60,80,0.8); pointer-events: none; white-space: nowrap; }
         .zone-note.is-expired::after { content: '기한 지남'; }
+        /* 꼬리표는 쪽지 위 바깥에 (예전엔 첫 줄 글자를 가렸다). 어떤 물건인지는 그 줄 글자 색으로 */
+        .zone-note .it.is-exp-line { color: #c81e33; font-weight: 800; }
+        .zone-note .it.is-low-line { color: #b85a00; font-weight: 800; }
         @keyframes low-breath { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.25; } }
         @media (prefers-reduced-motion: reduce) { .zone-note.is-low::before { animation: none; } }
         .zone-note.is-focus { outline: 2.5px solid #ff6ee0; outline-offset: 1px; box-shadow: 0 0 12px rgba(255, 90, 217, 0.85); } /* 찾은 칸 쪽지도 네온 */
@@ -3936,7 +3940,8 @@
             const note = document.createElement('div');
             const ex = zoneExp(z);
             note.className = 'zone-note' + (tiny ? ' is-tiny' : '') + (z === focus ? ' is-focus' : '') + (ex ? (ex === 'over' ? ' is-exp is-expired' : ' is-exp') : zoneLow(z) ? ' is-low' : '');
-            const fill = (lines, more) => note.replaceChildren(num, ...lines.map((t, i) => { const l = document.createElement('div'); l.textContent = t; l.className = more && i === lines.length - 1 ? 'more' : 'it'; return l; }));
+            const flag = new Map(z.items.map(i => [(i.pin ? '★ ' : '') + i.name, expState(i) ? ' is-exp-line' : (zoneLow({ items: [i] }) ? ' is-low-line' : '')])); // 임박·지남은 빨강, 부족은 주황 글자
+            const fill = (lines, more) => note.replaceChildren(num, ...lines.map((t, i) => { const l = document.createElement('div'); l.textContent = t; l.className = more && i === lines.length - 1 ? 'more' : 'it' + (flag.get(t) || ''); return l; }));
             slot.appendChild(note);
             // 한 줄짜리: 첫 물건 이름만 말줄임하고 "+N"은 끝까지 남긴다
             const oneLine = () => {
@@ -4860,7 +4865,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.7';
+    const APP_VERSION = '베타 2026.10.19.8';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5290,10 +5295,10 @@
         const stock = stockOn(), low = stock ? stockOrderLines().lines.length : 0, week = weekFinds();
         const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
         const ago = (t) => { const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? '오늘' : d === 1 ? '어제' : `${d}일 전`; };
-        const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : '재고를 아직 안 셌어요 · 아래 <b>[재고]</b>로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
+        const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : low ? `발주할 물건 <b>${low}개</b>` : '재고를 아직 안 셌어요 · 아래 <b>[재고]</b>로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
         const tiles = [['구역', zoneCount], ['물건', itemCount], ['이번 주 찾음', week]].concat(stock ? [['부족', low, low > 0]] : [['사진', photos.length]]);
         const expN = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.filter(it => expState(it)).length, 0), 0);
-        const foot2 = foot + (expN ? ` · <b class="brief-exp">유통기한 임박·지남 ${expN}개</b>` : '');
+        const foot2 = foot + (expN ? `<span class="brief-exp-line">⚠ 유통기한 임박·지남 <b>${expN}개</b></span>` : ''); // 따로 한 줄 (이어 붙이면 줄이 넘쳐 읽기 어려웠다)
         const key = JSON.stringify([tiles, foot2]);
         if (el.dataset.key === key) return; // 그대로면 다시 올리지 않는다
         el.dataset.key = key;
@@ -6939,7 +6944,7 @@
     }
     function stockBadge(it) {
         if (!stockOn() || !isNum(it.qty)) return '';
-        return `<b class="zl-qty${isNum(it.par) && it.qty < it.par ? ' is-low' : ''}">${it.qty}</b>`;
+        return `<b class="zl-qty${isNum(it.par) && it.qty < it.par ? ' is-low' : ''}">${it.qty}개</b>`; // "개"를 붙여 유통기한 D-day 숫자와 헷갈리지 않게
     }
     function syncStockRow() {
         const el = document.getElementById('stockRowText'); if (el) el.textContent = stockOn() ? '켜짐' : '꺼짐';
