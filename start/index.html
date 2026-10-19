@@ -7,231 +7,270 @@
 <meta name="description" content="새 알바가 올 때마다 반복되는 '이거 어디 있어요?' 선반 사진 한 장으로 매장 물건 지도를 만들어요. 가입·결제 없이 폰에서 바로.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="&quot;사장님, 빨대 어딨어요?&quot; — 창고여지도">
-<meta property="og:description" content="선반 사진 한 장으로 매장 물건 지도. 검색 한 번이면 그 칸이 빛나요. 가입·결제 없음.">
+<meta property="og:description" content="선반 사진 한 장이 물건 지도가 돼요. 검색 한 번이면 그 칸이 빛나요. 가입·결제 없음.">
 <meta property="og:image" content="https://trafficjourney.github.io/udigo/og-image.png?v=20">
 <meta property="og:url" content="https://trafficjourney.github.io/udigo/start/">
 <meta name="theme-color" content="#2e2960">
 <link rel="icon" href="../icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 손글씨는 포스트잇(알바가 묻는 말)에만 -->
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <!-- 방문자 통계: 앱·qr 페이지와 같은 토큰 (쿠키 없음). 버튼마다 go/ 아래 다른 주소를 거쳐 가서 "어느 카드에서 눌렀나"를 센다 -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "273e5309e3764e809f02aab7f9942c5c"}'></script>
 <style>
   :root {
-    --ink: #1c1a33; --ink2: #5d5a74; --ink3: #8b88a3; --line: #e4e1f2;
-    --bg: #f6f5fb; --card: #ffffff; --accent: #3b3577; --accent-soft: #e8e6f4; --hero: #2e2960;
-    --low: #ff8a1c; --exp: #e8384a; --pink: #ff6ee0; --cyan: #46ebff;
+    --ink: #1c1a33; --ink2: #55526c; --ink3: #8b88a3; --line: #e6e3ef;
+    --paper: #fbfaf6; --navy: #2e2960; --navy2: #3b3577; --note: #fff1a6; --note-edge: #e9d978;
+    --yellow: #ffd84d; --low: #ff8a1c; --exp: #e8384a;
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
   img, video { display: block; max-width: 100%; height: auto; }
   a { color: inherit; }
-  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
-  section { padding: 44px 0; }
-  h1, h2, h3 { margin: 0; line-height: 1.3; letter-spacing: -0.4px; }
-  h2 { font-size: 23px; }
-  .eyebrow { display: inline-block; margin-bottom: 10px; font-size: 13px; font-weight: 800; color: var(--accent); }
-  .lead { margin: 10px 0 0; font-size: 16px; color: var(--ink2); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { margin: 0; line-height: 1.28; letter-spacing: -0.5px; }
+  h2 { font-size: 25px; }
+  p { margin: 0; }
 
   /* 버튼 */
-  .cta { display: grid; gap: 10px; margin-top: 22px; }
-  .btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 54px; padding: 0 18px; border-radius: 16px; font-size: 16.5px; font-weight: 800; text-decoration: none; text-align: center; }
-  .btn-main { background: #ffd84d; color: #1c1a33; box-shadow: 0 6px 20px rgba(255,200,40,0.35); } /* 주 버튼: 꽉 찬 노랑 (보조 버튼은 테두리만) */
-  .btn-sub { border: 1.5px solid rgba(255,255,255,0.55); color: #fff; }
-  .btn-sub { flex-direction: column; gap: 0; padding: 8px 18px; line-height: 1.25; }
+  .btn { display: flex; align-items: center; justify-content: center; min-height: 54px; padding: 0 20px; border-radius: 14px; font-size: 16.5px; font-weight: 800; text-decoration: none; text-align: center; }
+  .btn-main { background: var(--yellow); color: var(--ink); box-shadow: 0 6px 18px rgba(255,200,40,0.3); }
+  .btn-sub { flex-direction: column; padding: 8px 20px; line-height: 1.25; border: 1.5px solid rgba(255,255,255,0.5); color: #fff; }
   .btn-sub small { font-size: 12.5px; font-weight: 600; opacity: 0.8; }
-  .safe { margin: 14px 0 0; text-align: center; font-size: 13px; color: rgba(255,255,255,0.75); }
-  .safe b { color: #fff; }
+  .safe { margin-top: 12px; font-size: 13px; color: rgba(255,255,255,0.72); }
+  .safe b { color: #fff; font-weight: 700; }
 
-  /* 1. 문제 */
-  .hero { padding: 40px 0 36px; background: radial-gradient(120% 70% at 50% 0%, #3d3685 0%, var(--hero) 60%); color: #fff; }
-  .hero .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; opacity: 0.95; }
-  .hero .brand img { width: 26px; height: 26px; border-radius: 7px; }
-  .hero .pill { margin-left: auto; padding: 3px 10px; border: 1px solid rgba(255,255,255,0.4); border-radius: 12px; font-size: 12px; font-weight: 700; }
-  .hero h1 { margin-top: 26px; font-size: 29px; }
-  .hero h1 .q { color: #ffe14d; }
-  .hero .lead { color: rgba(255,255,255,0.85); }
-  .hero-video { margin-top: 22px; border-radius: 18px; overflow: hidden; background: #0b1026; box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(70,235,255,0.25); }
-  .hero-video video { width: 100%; height: auto; }
+  /* ── 1. 맨 위: 같은 선반 사진 전/후 (가운데를 밀어서 비교) ── */
+  .hero { background: var(--navy); color: #fff; padding: 22px 0 40px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; }
+  .brand img { width: 26px; height: 26px; border-radius: 7px; }
+  .brand span { margin-left: auto; font-size: 12px; font-weight: 600; opacity: 0.7; }
+  .hero-grid { display: grid; gap: 22px; margin-top: 26px; }
+  .hero h1 { font-size: 31px; }
+  .hero h1 em { font-style: normal; color: var(--yellow); }
+  .hero .scene { margin-top: 12px; font-size: 16px; color: rgba(255,255,255,0.82); }
+  .hero .cta { display: grid; gap: 10px; margin-top: 22px; }
+  .compare { position: relative; border-radius: 14px; overflow: hidden; background: #e9e6df; box-shadow: 0 14px 34px rgba(0,0,0,0.35); --p: 50%; user-select: none; -webkit-user-select: none; }
+  .compare img { width: 100%; }
+  .compare .before { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--p)) 0 0); }
+  .compare .before img { height: 100%; object-fit: cover; }
+  .compare .bar { position: absolute; top: 0; bottom: 0; left: var(--p); width: 3px; margin-left: -1.5px; background: #fff; box-shadow: 0 0 8px rgba(0,0,0,0.35); pointer-events: none; }
+  .compare .knob { position: absolute; top: 50%; left: var(--p); width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%; background: #fff; box-shadow: 0 3px 10px rgba(0,0,0,0.35); display: grid; place-items: center; font-size: 15px; font-weight: 900; color: var(--navy); pointer-events: none; }
+  .compare .lab { position: absolute; top: 10px; padding: 3px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 800; pointer-events: none; }
+  .compare .lab.l { left: 10px; background: rgba(28,26,51,0.75); color: #fff; }
+  .compare .lab.r { right: 10px; background: var(--yellow); color: var(--ink); }
+  .compare input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; }
+  .compare-cap { margin-top: 8px; font-size: 12.5px; color: rgba(255,255,255,0.65); text-align: center; }
 
-  .pains { display: grid; gap: 10px; margin-top: 18px; padding: 0; list-style: none; }
-  .pains li { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); font-size: 15.5px; }
-  .pains .ic { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); font-size: 16px; }
-  .pains b { display: block; }
-  .pains small { color: var(--ink2); font-size: 13.5px; }
+  /* ── 2. 포스트잇: 알바가 묻는 말 ── */
+  .asks { padding: 52px 0 46px; }
+  .asks h2 { text-align: center; }
+  .notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px 22px; margin: 30px 0 26px; }
+  .note { position: relative; width: 210px; padding: 26px 18px 20px; background: var(--note); border-bottom: 2px solid var(--note-edge); box-shadow: 0 10px 18px rgba(60,50,0,0.12); font-family: "Nanum Pen Script", cursive; font-size: 28px; line-height: 1.15; color: #3b3216; }
+  .note::before { content: ''; position: absolute; top: -9px; left: 50%; width: 64px; height: 18px; margin-left: -32px; background: rgba(255,255,255,0.65); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .note small { display: block; margin-top: 8px; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; font-size: 12px; color: #7a6a1e; }
+  .note:nth-child(1) { transform: rotate(-3deg); }
+  .note:nth-child(2) { transform: rotate(2deg) translateY(6px); }
+  .note:nth-child(3) { transform: rotate(-1.5deg); }
+  .asks .after-notes { max-width: 560px; margin: 0 auto; text-align: center; font-size: 16px; color: var(--ink2); }
+  .asks .after-notes b { color: var(--ink); }
 
-  /* 2. 전/후 */
-  .ba { display: grid; gap: 12px; margin-top: 18px; }
-  .ba-card { padding: 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
-  .ba-card h3 { font-size: 15px; display: flex; align-items: center; gap: 8px; }
-  .tag { padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 800; }
-  .tag.before { background: #eceaf3; color: var(--ink2); }
-  .tag.after { background: var(--accent); color: #fff; }
-  .ba-card ul { margin: 10px 0 0; padding-left: 18px; color: var(--ink2); font-size: 14.5px; }
-  .ba-card ul li + li { margin-top: 4px; }
-  .ba-card.is-after { border-color: rgba(59,53,119,0.35); box-shadow: 0 6px 18px rgba(59,53,119,0.08); }
-  .ba-card.is-after ul { color: var(--ink); }
-  .ba-media { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8px; margin-top: 12px; }
-  .ba-media figure { margin: 0; }
-  .ba-media video, .ba-media img { width: 100%; border-radius: 10px; border: 1px solid var(--line); background: #0b1026; }
-  .ba-media img { background: #fff; }
-  .ba-media figcaption { margin-top: 4px; font-size: 12px; color: var(--ink3); text-align: center; }
+  /* ── 3. 어떻게: 칸 번호(앱의 검은 동그라미)로 세 걸음 ── */
+  .how { padding: 46px 0; background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .steps { display: grid; gap: 30px; margin-top: 24px; }
+  .step { display: grid; grid-template-columns: 34px 1fr; gap: 0 12px; align-items: start; }
+  .num { width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; }
+  .step h3 { font-size: 18px; }
+  .step p { margin-top: 4px; font-size: 15px; color: var(--ink2); }
+  .step .media { grid-column: 2; margin-top: 12px; border-radius: 12px; overflow: hidden; background: #0b1026; }
+  .step .media.light { background: #fff; border: 1px solid var(--line); max-height: 300px; }
+  .step .media.light img { width: 100%; object-fit: cover; object-position: top; }
 
-  /* 3. 아픔 카드 */
-  .cards { display: grid; gap: 16px; margin-top: 18px; }
-  .card { border-radius: 18px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
-  .card .shot { background: #efedf6; border-bottom: 1px solid var(--line); }
-  .card .shot img { width: 100%; }
-  .card .body { padding: 16px; }
-  .card .quote { font-size: 18px; font-weight: 800; }
-  .card p { margin: 6px 0 0; color: var(--ink2); font-size: 14.5px; }
-  .card .mark { display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; vertical-align: 1px; }
-  .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-  .card .row { grid-template-columns: 1.45fr 1fr; }
-  .card .row a { display: flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 10px; border-radius: 12px; font-size: 13.5px; font-weight: 800; text-decoration: none; text-align: center; line-height: 1.25; }
-  .card .row .try { background: var(--accent); color: #fff; }
-  .card .row .ask { border: 1.5px solid var(--accent); color: var(--accent); }
+  /* ── 4. 아픔별: 사진과 글을 번갈아 ── */
+  .pains { padding: 52px 0 20px; }
+  .pains .sub { margin-top: 8px; color: var(--ink2); }
+  .pain { display: grid; gap: 16px; padding: 30px 0; border-bottom: 1px dashed var(--line); }
+  .pain:last-child { border-bottom: 0; }
+  .pain .shot { border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 10px 26px rgba(28,26,51,0.12); }
+  .pain .k { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--navy2); }
+  .pain .k i { width: 9px; height: 9px; border-radius: 50%; }
+  .pain h3 { margin-top: 6px; font-size: 22px; }
+  .pain p { margin-top: 8px; font-size: 15.5px; color: var(--ink2); }
+  .pain .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 16px; }
+  .pain .row a { display: inline-flex; align-items: center; min-height: 46px; padding: 0 16px; border-radius: 12px; font-size: 14.5px; font-weight: 800; text-decoration: none; }
+  .pain .row .try { background: var(--navy2); color: #fff; }
+  .pain .row .ask { min-height: 0; padding: 0; color: var(--navy2); text-decoration: underline; text-underline-offset: 3px; }
 
-  /* 4. 업종 */
-  .biz { display: grid; gap: 10px; margin-top: 18px; padding: 0; list-style: none; }
-  .biz li { padding: 14px 16px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); font-size: 14.5px; color: var(--ink2); }
-  .biz b { display: block; margin-bottom: 2px; font-size: 15.5px; color: var(--ink); }
+  /* ── 5. 업종 ── */
+  .biz { padding: 40px 0 54px; }
+  .biz-list { display: grid; gap: 16px; margin-top: 20px; }
+  .biz-list div { padding: 4px 0 4px 14px; border-left: 4px solid var(--yellow); }
+  .biz-list b { display: block; font-size: 16px; }
+  .biz-list span { font-size: 14.5px; color: var(--ink2); }
 
-  /* 5. 마무리 */
-  .final { background: var(--hero); color: #fff; text-align: center; }
-  .final h2 { font-size: 24px; }
-  .final .lead { color: rgba(255,255,255,0.85); }
-  .faq { margin-top: 26px; text-align: left; }
-  .faq details { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.08); }
-  .faq details + details { margin-top: 8px; }
-  .faq summary { cursor: pointer; font-weight: 700; font-size: 14.5px; }
-  .faq p { margin: 8px 0 2px; font-size: 14px; color: rgba(255,255,255,0.82); }
-  footer { padding: 22px 0 calc(28px + env(safe-area-inset-bottom)); text-align: center; font-size: 12.5px; color: rgba(255,255,255,0.6); background: var(--hero); }
-  footer a { color: rgba(255,255,255,0.85); }
+  /* ── 6. 마무리 ── */
+  .final { background: var(--navy); color: #fff; padding: 50px 0 30px; }
+  .final h2 { font-size: 27px; }
+  .final .cta { display: grid; gap: 10px; margin-top: 22px; max-width: 460px; }
+  .faq { margin-top: 34px; max-width: 640px; }
+  .faq details { border-top: 1px solid rgba(255,255,255,0.14); padding: 12px 0; }
+  .faq details:last-child { border-bottom: 1px solid rgba(255,255,255,0.14); }
+  .faq summary { cursor: pointer; font-weight: 700; font-size: 15px; list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; float: right; opacity: 0.6; }
+  .faq details[open] summary::after { content: '−'; }
+  .faq p { margin-top: 8px; font-size: 14.5px; color: rgba(255,255,255,0.78); }
+  .maker { margin-top: 34px; font-size: 14px; color: rgba(255,255,255,0.75); }
+  .maker b { color: #fff; }
+  .maker a { color: var(--yellow); }
+  footer { padding: 18px 0 calc(26px + env(safe-area-inset-bottom)); background: var(--navy); color: rgba(255,255,255,0.45); font-size: 12px; }
 
-  @media (prefers-reduced-motion: reduce) { video { animation: none; } }
+  /* 넓은 화면: 위는 글·사진 2단, 걸음은 3단, 아픔별은 사진·글을 번갈아 */
+  @media (min-width: 900px) {
+    .hero { padding: 26px 0 64px; }
+    .hero-grid { grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; margin-top: 46px; }
+    .hero h1 { font-size: 44px; }
+    .hero .scene { font-size: 18px; }
+    .hero .cta { max-width: 420px; }
+    h2 { font-size: 32px; }
+    .steps { grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    .pain { grid-template-columns: 1.1fr 1fr; gap: 48px; align-items: center; padding: 44px 0; }
+    .pain:nth-of-type(even) .shot { order: 2; }
+    .pain h3 { font-size: 27px; }
+    .biz-list { grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  }
 </style>
 </head>
 <body>
 
-<!-- 1. 문제: 피크 시간에 흐름을 끊는 그 질문 -->
+<!-- 1. 맨 위: 같은 선반 사진 전/후 -->
 <header class="hero">
   <div class="wrap">
-    <div class="brand"><img src="../icon-192.png" alt="">창고여지도<span class="pill">무료 베타</span></div>
-    <h1><span class="q">“사장님, 빨대 어딨어요?”</span><br>피크 시간마다 듣는 그 질문</h1>
-    <p class="lead">선반 사진 한 장으로 우리 가게 물건 지도를 만들어요. 알바가 검색하면 그 칸이 빛나요.</p>
-    <div class="hero-video">
-      <video src="../promo/welcome-hero.mp4" poster="img/hero-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="검색하면 선반 사진에서 그 칸이 빛나는 화면"></video>
+    <div class="brand"><img src="../icon-192.png" alt="">창고여지도<span>무료 베타</span></div>
+    <div class="hero-grid">
+      <div>
+        <h1><em>“사장님, 빨대 어딨어요?”</em><br>오늘만 세 번째예요</h1>
+        <p class="scene">점심 피크 10분 전, 또 그 질문. 선반 사진 한 장을 물건 지도로 바꿔 두면 알바가 혼자 찾아요.</p>
+        <div class="cta">
+          <a class="btn btn-main" href="go/app-top/">지금 무료로 써 보기</a>
+          <a class="btn btn-sub" href="go/form-top/">무료 방문 세팅 신청 <small>다산·구리 · 선착순 10팀 · 10/31 마감</small></a>
+        </div>
+        <p class="safe"><b>결제 없음</b> · <b>가입 없음</b> · 사진은 <b>내 폰에만</b></p>
+      </div>
+      <div>
+        <!-- 사진은 바꿔 끼울 수 있다: img/before.jpg(표시 없는 선반) · img/after.jpg(같은 선반을 앱에 넣은 화면). 실제 매장 사진은 사장님 허락 + 메뉴판·로고·사람 없이 -->
+        <div class="compare" id="compare">
+          <img src="img/after.jpg" alt="칸마다 번호와 노란 쪽지로 물건 이름이 붙은 선반 사진" width="1000" height="699">
+          <div class="before"><img src="img/before.jpg" alt="아무 표시 없는 같은 선반 사진" width="1000" height="699"></div>
+          <span class="lab l">지금</span><span class="lab r">창고여지도</span>
+          <span class="bar"></span><span class="knob">↔</span>
+          <input type="range" min="0" max="100" value="50" aria-label="전후 비교: 밀어서 보기">
+        </div>
+        <p class="compare-cap">가운데를 밀어 보세요 · 같은 선반이에요</p>
+      </div>
     </div>
-    <div class="cta">
-      <a class="btn btn-main" href="go/app-top/">지금 무료로 써 보기</a>
-      <a class="btn btn-sub" href="go/form-top/">무료 방문 세팅 신청 <small>다산·구리 · 선착순 10팀 · 10/31 마감</small></a>
-    </div>
-    <p class="safe"><b>결제 없음</b> · <b>가입 없음</b> · 사진은 <b>내 폰에만</b></p>
   </div>
 </header>
 
-<section>
+<!-- 2. 알바가 묻는 말 (포스트잇) -->
+<section class="asks">
   <div class="wrap">
-    <span class="eyebrow">이런 적 있으세요?</span>
-    <h2>위치는 사장님 머릿속에만 있어요</h2>
-    <ul class="pains">
-      <li><span class="ic">⏱</span><div><b>피크 타임에 흐름이 끊겨요</b><small>주문 받다가 "이거 어딨어요?"에 손을 멈춰요</small></div></li>
-      <li><span class="ic">🔁</span><div><b>알바가 바뀔 때마다 창고 교육을 다시</b><small>같은 설명을 몇 번째 하는지 모르겠어요</small></div></li>
-      <li><span class="ic">📦</span><div><b>박스는 열어 봐야 알아요</b><small>포스트잇은 떨어지고, 리빙박스는 안이 안 보여요</small></div></li>
-    </ul>
+    <h2>알바가 묻는 말은 늘 같아요</h2>
+    <div class="notes">
+      <div class="note">사장님, 빨대 어딨어요?<small>새 알바 첫 주에 몇 번이고</small></div>
+      <div class="note">컵홀더 다 떨어졌어요!<small>꼭 사장님 안 계실 때</small></div>
+      <div class="note">이거 유통기한 지났는데요…<small>정리하다 뒤에서 나와요</small></div>
+    </div>
+    <p class="after-notes">피크 타임에 흐름이 끊기고, 알바가 바뀔 때마다 같은 설명을 다시 해요. <b>위치는 사장님 머릿속에만 있으니까요.</b></p>
   </div>
 </section>
 
-<!-- 2. 전 / 후 -->
-<section style="padding-top: 0;">
+<!-- 3. 어떻게 -->
+<section class="how">
   <div class="wrap">
-    <span class="eyebrow">바꾸면 이렇게</span>
-    <h2>사진 한 장 찍고, 말로 적으면 끝</h2>
-    <div class="ba">
-      <div class="ba-card">
-        <h3><span class="tag before">전</span> 지금</h3>
-        <ul>
-          <li>자꾸 떨어지는 포스트잇</li>
-          <li>뚜껑을 열어 봐야 아는 불투명 박스</li>
-          <li>사장님이 없으면 아무도 모르는 위치</li>
-        </ul>
+    <h2>선반 사진 한 장이 지도가 돼요</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <div><h3>찍으면 AI가 칸을 나눠요</h3><p>틀린 칸은 손가락으로 끌어서 고쳐요.</p></div>
+        <div class="media"><video poster="img/scan-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="AI가 선반 사진에서 칸을 찾는 화면"><source src="../promo/ai-scan.webm" type="video/webm"><source src="../promo/ai-scan.mp4" type="video/mp4"></video></div>
       </div>
-      <div class="ba-card is-after">
-        <h3><span class="tag after">후</span> 창고여지도</h3>
-        <ul>
-          <li>선반 사진을 찍으면 <b>AI가 칸을 나눠요</b></li>
-          <li>물건 이름은 <b>말로</b> 여러 개 한 번에</li>
-          <li>지도 한 장을 <b>단톡방에</b> 던지거나 <b>A4로 벽에</b></li>
-        </ul>
-        <div class="ba-media">
-          <figure><video poster="img/scan-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="AI가 선반 사진에서 칸을 찾는 화면"><source src="../promo/ai-scan.webm" type="video/webm"><source src="../promo/ai-scan.mp4" type="video/mp4"></video><figcaption>AI가 칸 나누기</figcaption></figure>
-          <figure><img src="../print-sample.jpg" alt="번호 붙은 선반 사진과 물건 찾아보기가 있는 A4 인쇄물" loading="lazy" width="600" height="849"><figcaption>벽에 붙이는 A4</figcaption></figure>
-        </div>
+      <div class="step">
+        <span class="num">2</span>
+        <div><h3>이름은 말로, 찾을 땐 검색</h3><p>"종이컵, 컵뚜껑, 빨대" 하고 말하면 칸에 들어가요. 검색하면 그 칸이 빛나요.</p></div>
+        <div class="media"><video src="../promo/welcome-hero.mp4" poster="img/hero-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="검색하면 그 칸이 빛나는 화면"></video></div>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <div><h3>단톡방에 한 장, 벽에 A4 한 장</h3><p>알바가 묻기 전에 지도를 보고 찾아가요.</p></div>
+        <div class="media light"><img src="../print-sample.jpg" alt="번호 붙은 선반 사진과 물건 찾아보기가 있는 A4 인쇄물" loading="lazy" width="600" height="849"></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- 3. 아픔 카드: 버튼마다 다른 주소(go/…)를 거쳐 가서 어느 카드가 제일 눌리는지 본다 -->
-<section style="padding-top: 0;">
+<!-- 4. 아픔별: 버튼마다 다른 주소(go/…)를 거쳐 가서 어느 아픔에 손을 드는지 센다 -->
+<section class="pains">
   <div class="wrap">
-    <span class="eyebrow">어떤 게 제일 불편하세요?</span>
     <h2>가게마다 아픈 곳이 달라요</h2>
-    <div class="cards">
-      <article class="card">
-        <div class="shot"><img src="img/find.jpg" alt="검색한 물건이 있는 칸만 밝게 빛나는 선반 사진" loading="lazy" width="720" height="506"></div>
-        <div class="body">
-          <div class="quote">새 알바마다 “이거 어딨어요?”</div>
-          <p>검색 한 번이면 사진에서 그 칸이 빛나요. 초성(ㅃㄷ)이나 말로도 찾고, "휴지"로 찾아도 냅킨이 나와요.</p>
-          <div class="row"><a class="try" href="go/app-staff/">검색 기능 먼저 써 보기</a><a class="ask" href="go/form-staff/">세팅 신청</a></div>
-        </div>
-      </article>
-      <article class="card">
-        <div class="shot"><img src="img/map.jpg" alt="모자란 물건이 있는 칸은 주황, 유통기한이 가까운 칸은 빨강 테두리인 선반 사진" loading="lazy" width="720" height="506"></div>
-        <div class="body">
-          <div class="quote">“사장님 없을 때 떨어진 줄 몰랐어요”</div>
-          <p>이만큼은 있어야 하는 수(기준)를 정해 두면, 모자란 칸이 지도에서 <span class="mark" style="background: var(--low);"></span>주황으로 보여요.</p>
-          <div class="row"><a class="try" href="go/app-low/">재고 부족 표시 써 보기</a><a class="ask" href="go/form-low/">세팅 신청</a></div>
-        </div>
-      </article>
-      <article class="card">
-        <div class="shot"><img src="img/exp.jpg" alt="유통기한이 가까운 순서로 정리된 목록. 기한 지남, D-2" loading="lazy" width="720" height="751"></div>
-        <div class="body">
-          <div class="quote">“유통기한 지나서 버린 게 아까워요”</div>
-          <p>날짜를 적어 두면 가까운 순으로 모이고, 3일 안이면 <span class="mark" style="background: var(--exp);"></span>빨강으로 알려요.</p>
-          <div class="row"><a class="try" href="go/app-exp/">유통기한 관리 써 보기</a><a class="ask" href="go/form-exp/">세팅 신청</a></div>
-        </div>
-      </article>
-      <article class="card">
-        <div class="shot"><img src="img/order.jpg" alt="기준보다 모자란 만큼만 모은 발주 목록" loading="lazy" width="720" height="751"></div>
-        <div class="body">
-          <div class="quote">“발주를 감으로 해요”</div>
-          <p>세면서 수량만 적으면 모자란 만큼만 발주 목록에 모여요. 카톡·문자로 바로 보내요.</p>
-          <div class="row"><a class="try" href="go/app-order/">발주 목록 기능 써 보기</a><a class="ask" href="go/form-order/">세팅 신청</a></div>
-        </div>
-      </article>
+    <p class="sub">제일 와닿는 데서 눌러 보세요.</p>
+    <article class="pain">
+      <div class="shot"><img src="img/find.jpg" alt="검색한 물건이 있는 칸만 밝게 빛나는 선반 사진" loading="lazy" width="720" height="506"></div>
+      <div>
+        <span class="k">새 알바</span>
+        <h3>“이거 어딨어요?”가 줄어요</h3>
+        <p>검색 한 번이면 사진에서 그 칸이 빛나요. 초성(ㅃㄷ)이나 말로도 찾고, "휴지"로 찾아도 냅킨이 나와요.</p>
+        <div class="row"><a class="try" href="go/app-staff/">검색 기능 먼저 써 보기</a><a class="ask" href="go/form-staff/">세팅 신청</a></div>
+      </div>
+    </article>
+    <article class="pain">
+      <div class="shot"><img src="img/map.jpg" alt="모자란 물건이 있는 칸은 주황, 유통기한이 가까운 칸은 빨강 테두리인 선반 사진" loading="lazy" width="720" height="506"></div>
+      <div>
+        <span class="k"><i style="background: var(--low);"></i>재고</span>
+        <h3>떨어진 걸 사장님 없이도 알아요</h3>
+        <p>이만큼은 있어야 하는 수(기준)를 정해 두면, 모자란 칸이 지도에서 주황으로 보여요.</p>
+        <div class="row"><a class="try" href="go/app-low/">재고 부족 표시 써 보기</a><a class="ask" href="go/form-low/">세팅 신청</a></div>
+      </div>
+    </article>
+    <article class="pain">
+      <div class="shot"><img src="img/exp.jpg" alt="유통기한이 가까운 순서로 정리된 목록. 기한 지남, D-2" loading="lazy" width="720" height="751"></div>
+      <div>
+        <span class="k"><i style="background: var(--exp);"></i>유통기한</span>
+        <h3>버리기 전에 먼저 알려 줘요</h3>
+        <p>날짜를 적어 두면 가까운 순으로 모이고, 3일 안이면 빨강으로 보여요.</p>
+        <div class="row"><a class="try" href="go/app-exp/">유통기한 관리 써 보기</a><a class="ask" href="go/form-exp/">세팅 신청</a></div>
+      </div>
+    </article>
+    <article class="pain">
+      <div class="shot"><img src="img/order.jpg" alt="기준보다 모자란 만큼만 모은 발주 목록" loading="lazy" width="720" height="751"></div>
+      <div>
+        <span class="k">발주</span>
+        <h3>감 대신, 모자란 만큼만</h3>
+        <p>세면서 수량만 적으면 모자란 만큼 발주 목록에 모여요. 카톡·문자로 바로 보내요.</p>
+        <div class="row"><a class="try" href="go/app-order/">발주 목록 기능 써 보기</a><a class="ask" href="go/form-order/">세팅 신청</a></div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- 5. 업종 -->
+<section class="biz">
+  <div class="wrap">
+    <h2>이런 가게에서 써요</h2>
+    <div class="biz-list">
+      <div><b>카페 · 식당</b><span>초성 검색과 단톡방 지도 한 장으로, 새 알바도 첫날부터 혼자 찾아요.</span></div>
+      <div><b>의류 · 잡화</b><span>계절 지난 재고 박스, 뜯어보지 않고 폰에서 박스별 목록으로 확인해요.</span></div>
+      <div><b>정리수납 · 보관</b><span>정리가 끝나면 칸 번호가 붙은 사진 지도를 A4로 고객님께 드려요.</span></div>
     </div>
   </div>
 </section>
 
-<!-- 4. 업종별 한 줄 -->
-<section style="padding-top: 0;">
-  <div class="wrap">
-    <span class="eyebrow">이런 가게에 맞아요</span>
-    <h2>업종별로 이렇게 써요</h2>
-    <ul class="biz">
-      <li><b>☕ 카페·식당</b>초성 검색과 단톡방 지도 한 장으로, 새 알바도 첫날부터 혼자 찾아요</li>
-      <li><b>👕 의류·잡화</b>계절 지난 재고 박스, 뜯어보지 않고 폰에서 박스별 목록으로 확인해요</li>
-      <li><b>🧺 정리수납·보관</b>정리가 끝나면 고객님께 칸 번호가 붙은 사진 지도를 A4로 드려요</li>
-    </ul>
-  </div>
-</section>
-
-<!-- 5. 부담 없는 버튼 -->
+<!-- 6. 마무리 -->
 <section class="final">
   <div class="wrap">
-    <h2>오늘 선반 하나만 찍어 보세요</h2>
-    <p class="lead">가입 없이 폰에서 바로 열려요. 어렵다면 직접 가서 세팅해 드려요.</p>
+    <h2>오늘, 선반 하나만 찍어 보세요</h2>
     <div class="cta">
       <a class="btn btn-main" href="go/app-bottom/">지금 무료로 써 보기</a>
       <a class="btn btn-sub" href="go/form-bottom/">무료 방문 세팅 신청 <small>다산·구리 · 선착순 10팀 · 10/31 마감</small></a>
@@ -243,10 +282,29 @@
       <details><summary>앱을 설치해야 하나요?</summary><p>링크로 바로 열려요. 자주 쓰시면 홈 화면에 추가해 앱처럼 쓸 수 있어요.</p></details>
       <details><summary>알바도 같이 볼 수 있어요?</summary><p>지도를 사진·PDF로 단톡방에 바로 보낼 수 있어요. 단톡방에 올려 두면 알바가 묻기 전에 지도를 보고 찾아가요. 링크로 같이 보는 기능도 준비하고 있어요.</p></details>
     </div>
+    <p class="maker"><b>혼자 만들고 있어요.</b> 써 보시고 불편한 점은 앱의 설정 › <b>의견 보내기</b>로 알려 주세요. 하나하나 읽고 고쳐요. · <a href="../">창고여지도 열기</a></p>
   </div>
 </section>
-<footer>
-  혼자 만드는 베타 서비스예요. 쓴소리 환영해요 · <a href="../">창고여지도 열기</a>
-</footer>
+<footer><div class="wrap">창고여지도 · 무료 베타</div></footer>
+
+<script>
+  // 전/후 비교: 밀면 경계가 따라오고, 처음엔 한 번 살짝 움직여 "밀 수 있다"를 알린다
+  (function () {
+    var box = document.getElementById('compare'), input = box.querySelector('input');
+    var set = function (v) { box.style.setProperty('--p', v + '%'); };
+    var moved = false;
+    input.addEventListener('input', function () { moved = true; set(input.value); });
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var t0 = null;
+    function hint(t) {
+      if (moved) return;
+      if (t0 === null) t0 = t;
+      var k = Math.min(1, (t - t0) / 1600), v = 50 + Math.sin(k * Math.PI * 2) * 22 * (1 - k);
+      set(v); input.value = v;
+      if (k < 1) requestAnimationFrame(hint);
+    }
+    setTimeout(function () { requestAnimationFrame(hint); }, 900);
+  })();
+</script>
 </body>
 </html>
