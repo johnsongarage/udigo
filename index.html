@@ -2766,10 +2766,12 @@
         return z.items.some(it => n(it.qty) && n(it.par) && it.qty < it.par);
     }
     // 평소 칸 테두리: 테마 색 선 + 가운데 흰 심 (빛 번짐 없음). 분홍 네온은 찾은 칸·AI 연출 같은 "순간"에만 쓴다
+    // 연한 보조색(분홍·노랑·금색)만 쓰면 사진 위에서 구분선처럼 흐려 보여서: 흰 테 → 테마의 진한 색 선 → 가운데 보조색 심 (어떤 사진에서도 또렷하고 테마 색은 살린다)
     function strokeTheme(ctx, z, k) {
         ctx.save();
-        ctx.lineWidth = Math.max(3.5, 2.6 * k); ctx.strokeStyle = themeColors.accent2 || '#52b788'; ctx.strokeRect(z.x, z.y, z.w, z.h); // 폰에서 얇아 보여 굵게 (화면 기준 약 2.6px)
-        ctx.lineWidth = Math.max(1, 0.6 * k); ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.lineWidth = Math.max(6, 4.4 * k); ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.lineWidth = Math.max(3.5, 2.6 * k); ctx.strokeStyle = themeColors.accent || '#2d6a4f'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.lineWidth = Math.max(1, 0.8 * k); ctx.strokeStyle = themeColors.accent2 || '#52b788'; ctx.strokeRect(z.x, z.y, z.w, z.h);
         ctx.restore();
     }
     function strokeNeon(ctx, z, k, low) {
@@ -4361,13 +4363,12 @@
                     // 겹쳐 그려 "이중 테두리(halo)"로 만든다. 1px 밀어서 그리는 그림자 방식은 흰 배경에서 거의 안 보였다.
                     // 네온 테두리: 어두운 바탕선 위에 빛나는 선 (흰 수납장·어두운 창고 어디서든 보이게)
                     const k = displayScale(canvas);
-                    ctx.lineWidth = Math.max(6.5, 4.2 * k); ctx.strokeStyle = 'rgba(16,0,28,0.55)'; ctx.strokeRect(z.x, z.y, z.w, z.h); // 어두운 바탕선도 테마 선에 맞춰 굵게
-                    if (zoneLow(z)) strokeNeon(ctx, z, k, true); else strokeTheme(ctx, z, k); // 부족한 칸만 주황 네온
+                    if (zoneLow(z)) { ctx.lineWidth = Math.max(6.5, 4.2 * k); ctx.strokeStyle = 'rgba(16,0,28,0.55)'; ctx.strokeRect(z.x, z.y, z.w, z.h); strokeNeon(ctx, z, k, true); } // 부족한 칸만 주황 네온 (어두운 바탕선 위)
+                    else strokeTheme(ctx, z, k);
                 } else if (isEditMode && !pickMode && !isHovered && z !== activeZone) {
                     // 고치기 기본 구역: 2px 고정이면 폰에서 1px도 안 돼 사진에 묻혔다 → 화면 배율만큼 굵게 + 어두운 테두리 위에 색 선
                     const k = displayScale(canvas);
                     ctx.fillRect(z.x, z.y, z.w, z.h);
-                    ctx.lineWidth = Math.max(6.5, 4.2 * k); ctx.strokeStyle = 'rgba(16,0,28,0.5)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
                     strokeTheme(ctx, z, k);
                 } else { ctx.fillRect(z.x, z.y, z.w, z.h); ctx.strokeRect(z.x, z.y, z.w, z.h); if (z === activeZone && !isHovered && !pickMode) strokeNeon(ctx, z, displayScale(canvas) * 1.6); }
             }
@@ -4818,7 +4819,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.5';
+    const APP_VERSION = '베타 2026.10.19.6';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
