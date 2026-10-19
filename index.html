@@ -444,21 +444,22 @@
             body.hero-search-active.hero-search-focused .hero-quick { display: none; }
 
             .hero-summary { text-align: center; font-size: 14px; font-weight: 500; color: var(--hero-text2); margin-top: -6px; font-variant-numeric: tabular-nums; }
-            /* 창고 브리핑: 작은 레이더 화면 카드에 숫자가 0부터 올라간다 */
-            .brief { position: relative; overflow: hidden; padding: 12px 12px 10px; border-radius: 16px; background: #0b1026; box-shadow: var(--shadow-md), inset 0 0 0 1px rgba(70,235,255,0.22); color: #e6fdff; text-align: left; }
-            .brief::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(70,235,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(70,235,255,0.07) 1px, transparent 1px); background-size: 18px 18px; pointer-events: none; }
-            .brief::after { content: ''; position: absolute; left: 0; right: 0; top: -40%; height: 40%; background: linear-gradient(transparent, rgba(70,235,255,0.16)); animation: brief-sweep 3.2s linear 2; pointer-events: none; } /* 두 번만 훑고 멈춘다 */
+            /* 창고 브리핑: 밝은 레이더 카드에 숫자가 0부터 올라간다. 격자·빛·숫자 색은 테마 색(--accent, --accent-rgb)을 따른다. "부족"만 어느 테마든 주황 (뜻이 있는 색) */
+            .brief { --brief-rgb: var(--accent-rgb); position: relative; overflow: hidden; padding: 12px 12px 10px; border-radius: 16px; background: linear-gradient(180deg, #ffffff 0%, var(--accent-soft) 100%); box-shadow: var(--shadow-md), inset 0 0 0 1px rgba(var(--brief-rgb),0.28); color: var(--text); text-align: left; }
+            .brief::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(var(--brief-rgb),0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--brief-rgb),0.10) 1px, transparent 1px); background-size: 18px 18px; pointer-events: none; }
+            .brief::after { content: ''; position: absolute; left: 0; right: 0; top: -40%; height: 40%; background: linear-gradient(transparent, rgba(var(--brief-rgb),0.20)); animation: brief-sweep 3.2s linear 2; pointer-events: none; } /* 두 번만 훑고 멈춘다 */
             @keyframes brief-sweep { to { transform: translateY(350%); } }
-            .brief-head { position: relative; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 700; color: rgba(200,245,255,0.75); }
-            .brief-head .dot { width: 7px; height: 7px; border-radius: 50%; background: #46ebff; box-shadow: 0 0 8px #46ebff; animation: low-breath 1.6s ease-in-out 4; }
+            .brief-head { position: relative; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 700; color: var(--text2); }
+            .brief-head .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 8px rgba(var(--brief-rgb),0.9); animation: low-breath 1.6s ease-in-out 4; }
             .brief-grid { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-            .brief-tile { padding: 6px 4px 5px; border-radius: 10px; background: rgba(70,235,255,0.07); text-align: center; }
-            .brief-tile b { display: block; font-size: 22px; font-weight: 800; line-height: 1.15; color: #fff; text-shadow: 0 0 10px rgba(70,235,255,0.8); font-variant-numeric: tabular-nums; }
-            .brief-tile span { font-size: 11px; color: rgba(200,245,255,0.7); white-space: nowrap; }
-            .brief-tile.is-low { background: rgba(255,140,30,0.14); }
-            .brief-tile.is-low b { color: #ffd7a8; text-shadow: 0 0 10px rgba(255,140,30,0.9); }
-            .brief-foot { position: relative; margin-top: 8px; font-size: 12px; color: rgba(200,245,255,0.7); }
-            .brief-foot b { color: #fff; font-weight: 700; }
+            .brief-tile { padding: 6px 4px 5px; border-radius: 10px; background: rgba(255,255,255,0.88); box-shadow: inset 0 0 0 1px rgba(var(--brief-rgb),0.22); text-align: center; }
+            .brief-tile b { display: block; font-size: 22px; font-weight: 800; line-height: 1.15; color: var(--accent); text-shadow: 0 0 10px rgba(var(--brief-rgb),0.35); font-variant-numeric: tabular-nums; }
+            .brief-tile span { font-size: 11px; color: var(--text2); white-space: nowrap; }
+            .brief-tile.is-low { background: #fff3e6; box-shadow: inset 0 0 0 1px rgba(255,140,30,0.45); }
+            .brief-tile.is-low b { color: #e06a00; text-shadow: 0 0 10px rgba(255,140,30,0.45); }
+            .brief-foot { position: relative; margin-top: 8px; font-size: 12px; color: var(--text2); }
+            :root[data-theme="champagne"] .brief { --brief-rgb: 200, 169, 110; } /* 샴페인은 주 색이 짙은 회색이라 격자·빛은 금색으로 */
+            .brief-foot b { color: var(--text); font-weight: 700; }
             @media (prefers-reduced-motion: reduce) { .brief::after, .brief-head .dot { animation: none; } }
             .hero-quick { flex-direction: column; gap: 10px; margin-top: 6px; }
             .hero-quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -4804,7 +4805,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.18.8';
+    const APP_VERSION = '베타 2026.10.19.1';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
