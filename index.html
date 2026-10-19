@@ -889,6 +889,7 @@
         #printDownloadBtn:disabled { opacity: 0.75; cursor: progress; }
         .print-actions { display: flex; gap: 8px; margin-top: 14px; }
         .print-actions .btn-base { flex: 1; }
+        #printShareBtn { white-space: nowrap; }
         .sample-banner > span { word-break: keep-all; }
         .sample-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .guide-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; font-size: 13px; color: var(--text2); line-height: 1.6; text-align: left; }
@@ -2245,7 +2246,7 @@
     </div>
     </div><!-- /print-body -->
     <div class="print-actions">
-        <button type="button" class="btn-base btn-secondary" onclick="closePrintPreview()">닫기</button>
+        <button type="button" id="printShareBtn" class="btn-base btn-secondary" onclick="shareToChat()"><i class="ti ti-message-circle"></i> 단톡방에 보내기</button>
         <button type="button" id="printDownloadBtn" class="btn-base btn-primary" onclick="downloadReportAsPDF()"><i class="ti ti-download"></i> PDF 받기</button>
     </div>
 </div>
@@ -4911,7 +4912,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.12';
+    const APP_VERSION = '베타 2026.10.19.13';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6945,6 +6946,28 @@
             document.head.appendChild(sc);
         });
         return jsPdfLoading;
+    }
+    // 💬 단톡방에 보내기: 미리보기 쪽들을 사진(JPG)으로 만들어 휴대폰 공유 창으로 (카톡 단톡방에 바로 붙어 사진으로 보인다)
+    //   서버 없이 "알바에게 지도 보내기" 수요를 먼저 보려는 것 (읽기 전용 링크는 11/4 시험 뒤 1순위 — 로드맵)
+    //   공유 창은 누른 직후에만 열 수 있어서, 그림은 기다리지 않고 바로(동기로) 만든다
+    function dataUrlToFile(url, name) {
+        const [head, b64] = url.split(','), bin = atob(b64), u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        return new File([u8], name, { type: (head.match(/:(.*?);/) || [])[1] || 'image/jpeg' });
+    }
+    function shareToChat() {
+        const base = `${storeFileName() || APP_NAME}_${(PRINT_FORMS[printOpts.form] || PRINT_FORMS.map).file}_${fileDate()}`, files = [];
+        const px = PRINT.pxPerMm; PRINT.pxPerMm = 6; PRINT.raw = true; // 카톡에서 보기 좋은 크기 (A4 한 장 1260×1782)
+        try { printChunks().forEach(fn => fn().forEach(cv => files.push(dataUrlToFile(cv.toDataURL('image/jpeg', 0.86), `${base}_${files.length + 1}.jpg`)))); }
+        catch (e) { console.error(e); } finally { PRINT.pxPerMm = px; PRINT.raw = false; }
+        if (!files.length) return;
+        const count = () => { try { safeStorage.setItem('chatShares', String((parseInt(safeStorage.getItem('chatShares') || '0', 10) || 0) + 1)); } catch (e) {} }; // 폰에만 남는 횟수 (몇 번 보냈는지 사장님께 여쭤볼 때 참고)
+        if (navigator.canShare && navigator.canShare({ files })) {
+            navigator.share({ files }).then(count).catch(e => { if (e && e.name !== 'AbortError') showToast('보내기 창을 열지 못했어요. 한 번 더 눌러 주세요'); });
+        } else {
+            downloadReportAsPDF(); count();
+            showToast('이 기기에선 바로 보내기가 안 돼서 PDF로 받았어요. 카톡에서 파일로 보내 주세요', 4500);
+        }
     }
     async function downloadReportAsPDF() {
         const btn = document.getElementById('printDownloadBtn');
