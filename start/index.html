@@ -35,7 +35,7 @@
   /* 버튼 */
   .cta { display: grid; gap: 10px; margin-top: 22px; }
   .btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 54px; padding: 0 18px; border-radius: 16px; font-size: 16.5px; font-weight: 800; text-decoration: none; text-align: center; }
-  .btn-main { background: #fff; color: var(--hero); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+  .btn-main { background: #ffd84d; color: #1c1a33; box-shadow: 0 6px 20px rgba(255,200,40,0.35); } /* 주 버튼: 꽉 찬 노랑 (보조 버튼은 테두리만) */
   .btn-sub { border: 1.5px solid rgba(255,255,255,0.55); color: #fff; }
   .btn-sub { flex-direction: column; gap: 0; padding: 8px 18px; line-height: 1.25; }
   .btn-sub small { font-size: 12.5px; font-weight: 600; opacity: 0.8; }
@@ -86,7 +86,8 @@
   .card p { margin: 6px 0 0; color: var(--ink2); font-size: 14.5px; }
   .card .mark { display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; vertical-align: 1px; }
   .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-  .card .row a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 10px; border-radius: 12px; font-size: 14px; font-weight: 800; text-decoration: none; }
+  .card .row { grid-template-columns: 1.45fr 1fr; }
+  .card .row a { display: flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 10px; border-radius: 12px; font-size: 13.5px; font-weight: 800; text-decoration: none; text-align: center; line-height: 1.25; }
   .card .row .try { background: var(--accent); color: #fff; }
   .card .row .ask { border: 1.5px solid var(--accent); color: var(--accent); }
 
@@ -123,7 +124,7 @@
     </div>
     <div class="cta">
       <a class="btn btn-main" href="go/app-top/">지금 무료로 써 보기</a>
-      <a class="btn btn-sub" href="go/form-top/">무료 방문 세팅 신청 <small>다산동·구리시 · 10/31까지</small></a>
+      <a class="btn btn-sub" href="go/form-top/">무료 방문 세팅 신청 <small>다산·구리 · 선착순 10팀 · 10/31 마감</small></a>
     </div>
     <p class="safe"><b>결제 없음</b> · <b>가입 없음</b> · 사진은 <b>내 폰에만</b></p>
   </div>
@@ -182,7 +183,7 @@
         <div class="body">
           <div class="quote">새 알바마다 “이거 어딨어요?”</div>
           <p>검색 한 번이면 사진에서 그 칸이 빛나요. 초성(ㅃㄷ)이나 말로도 찾고, "휴지"로 찾아도 냅킨이 나와요.</p>
-          <div class="row"><a class="try" href="go/app-staff/">이걸로 써 보기</a><a class="ask" href="go/form-staff/">세팅 신청</a></div>
+          <div class="row"><a class="try" href="go/app-staff/">검색 기능 먼저 써 보기</a><a class="ask" href="go/form-staff/">세팅 신청</a></div>
         </div>
       </article>
       <article class="card">
@@ -190,7 +191,7 @@
         <div class="body">
           <div class="quote">“사장님 없을 때 떨어진 줄 몰랐어요”</div>
           <p>이만큼은 있어야 하는 수(기준)를 정해 두면, 모자란 칸이 지도에서 <span class="mark" style="background: var(--low);"></span>주황으로 보여요.</p>
-          <div class="row"><a class="try" href="go/app-low/">이걸로 써 보기</a><a class="ask" href="go/form-low/">세팅 신청</a></div>
+          <div class="row"><a class="try" href="go/app-low/">재고 부족 표시 써 보기</a><a class="ask" href="go/form-low/">세팅 신청</a></div>
         </div>
       </article>
       <article class="card">
@@ -198,7 +199,7 @@
         <div class="body">
           <div class="quote">“유통기한 지나서 버린 게 아까워요”</div>
           <p>날짜를 적어 두면 가까운 순으로 모이고, 3일 안이면 <span class="mark" style="background: var(--exp);"></span>빨강으로 알려요.</p>
-          <div class="row"><a class="try" href="go/app-exp/">이걸로 써 보기</a><a class="ask" href="go/form-exp/">세팅 신청</a></div>
+          <div class="row"><a class="try" href="go/app-exp/">유통기한 관리 써 보기</a><a class="ask" href="go/form-exp/">세팅 신청</a></div>
         </div>
       </article>
       <article class="card">
@@ -206,7 +207,7 @@
         <div class="body">
           <div class="quote">“발주를 감으로 해요”</div>
           <p>세면서 수량만 적으면 모자란 만큼만 발주 목록에 모여요. 카톡·문자로 바로 보내요.</p>
-          <div class="row"><a class="try" href="go/app-order/">이걸로 써 보기</a><a class="ask" href="go/form-order/">세팅 신청</a></div>
+          <div class="row"><a class="try" href="go/app-order/">발주 목록 기능 써 보기</a><a class="ask" href="go/form-order/">세팅 신청</a></div>
         </div>
       </article>
     </div>
@@ -233,14 +234,14 @@
     <p class="lead">가입 없이 폰에서 바로 열려요. 어렵다면 직접 가서 세팅해 드려요.</p>
     <div class="cta">
       <a class="btn btn-main" href="go/app-bottom/">지금 무료로 써 보기</a>
-      <a class="btn btn-sub" href="go/form-bottom/">무료 방문 세팅 신청 <small>다산동·구리시 · 10/31까지</small></a>
+      <a class="btn btn-sub" href="go/form-bottom/">무료 방문 세팅 신청 <small>다산·구리 · 선착순 10팀 · 10/31 마감</small></a>
     </div>
     <p class="safe"><b>결제 없음</b> · <b>가입 없음</b> · 사진은 <b>내 폰에만</b></p>
     <div class="faq">
       <details><summary>정말 무료예요?</summary><p>지금은 베타라 모든 기능이 무료예요. 결제 정보를 묻지 않아요.</p></details>
       <details><summary>사진은 어디에 저장돼요?</summary><p>사장님 폰 안에만 저장돼요. 'AI로 칸 나누기'를 누를 때만 그 사진이 칸을 찾는 서버에 잠깐 다녀와요.</p></details>
       <details><summary>앱을 설치해야 하나요?</summary><p>링크로 바로 열려요. 자주 쓰시면 홈 화면에 추가해 앱처럼 쓸 수 있어요.</p></details>
-      <details><summary>알바도 같이 볼 수 있어요?</summary><p>지도를 사진·PDF로 단톡방에 바로 보낼 수 있어요. 링크로 같이 보는 기능은 준비하고 있어요.</p></details>
+      <details><summary>알바도 같이 볼 수 있어요?</summary><p>지도를 사진·PDF로 단톡방에 바로 보낼 수 있어요. 단톡방에 올려 두면 알바가 묻기 전에 지도를 보고 찾아가요. 링크로 같이 보는 기능도 준비하고 있어요.</p></details>
     </div>
   </div>
 </section>
