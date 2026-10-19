@@ -820,6 +820,16 @@
         .stock-par input { width: 44px; height: 36px; font-size: 13px; font-weight: 400; }
         .stock-order-row { display: flex; align-items: baseline; gap: 8px; padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 14.5px; }
         .stock-order-row .n { flex: none; min-width: 44px; text-align: right; font-weight: 800; color: var(--danger); }
+        .stock-order-row .n.exp { min-width: 58px; font-size: 13px; color: var(--text3); }
+        .stock-order-row .n.exp.is-soon { color: #d0283a; }
+        .stock-order-row .n.exp.is-over { color: #fff; } .stock-order-row .n.exp.is-over span { padding: 1px 6px; border-radius: 8px; background: #d0283a; }
+        /* 세기 줄의 유통기한: 작은 칩을 누르면 휴대폰 달력 (날짜 칸을 칩 위에 투명하게 겹침) */
+        .stock-exp { position: relative; display: inline-flex; align-items: center; margin-top: 4px; padding: 2px 8px; border: 1px dashed var(--border); border-radius: 10px; font-size: 11.5px; font-weight: 700; color: var(--text3); cursor: pointer; }
+        .stock-exp.has-date { border-style: solid; color: var(--text2); }
+        .stock-exp.is-soon { border-color: #f3a3ab; background: #ffe3e6; color: #d0283a; }
+        .stock-exp.is-over { border-color: #d0283a; background: #d0283a; color: #fff; }
+        .stock-exp input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+        .stock-tab-off { display: none !important; }
         .stock-order-row .t { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
         .stock-order-row small { display: block; font-size: 12px; color: var(--text3); }
         .stock-empty { padding: 28px 8px; text-align: center; color: var(--text3); font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
@@ -830,6 +840,7 @@
         #stockFab .ti { font-size: 16px; }
         /* 새 기능 알림: 한 번 열어 볼 때까지 연한 형광 테두리 */
         #stockFab.is-new { border: 1.5px solid #b5e61d; box-shadow: 0 0 0 3px rgba(181,230,29,0.28), var(--shadow-xs); }
+        #stockFab .fab-badge.is-exp { margin-left: 1px; background: #e8384a; box-shadow: 0 0 8px rgba(255,60,80,0.7); }
         #stockFab .fab-badge { min-width: 17px; height: 17px; margin-left: 2px; padding: 0 4px; border-radius: 9px; background: #ff8a1c; color: #fff; font-size: 11px; font-style: normal; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 8px rgba(255,140,30,0.75); }
         #stockFab .fab-badge[hidden] { display: none; }
         #stockFab[hidden] { display: none; } /* .fab-btn의 display가 hidden을 덮어 꺼도 보였다 */
@@ -1503,7 +1514,12 @@
         /* 구역 창: 담긴 물건을 누르면 펼쳐지는 칸에 [★ 신입용 고정]·유통기한 */
         .zm-head-hint { margin-left: 4px; font-size: 11.5px; font-weight: 500; color: var(--text3); }
         .zm-extra { display: none; }
-        .zm-body .zm-item.memo-open .zm-extra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 0 10px 6px; }
+        .zm-body .zm-item.memo-open .zm-extra { display: flex; align-items: center; gap: 8px; margin: 0 10px 6px; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+        .zm-info { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text2); line-height: 1.5; }
+        .zm-info b { color: var(--text); }
+        .zm-info b.zm-info-exp { color: #d0283a; }
+        .zm-to-check { flex: none; padding: 6px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); color: var(--accent); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .stock-row.is-target { background: var(--accent-soft); transition: background 0.4s; }
         .zm-f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text3); }
         .zm-f input { height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 13.5px; box-sizing: border-box; }
         .zm-f-par input { width: 70px; text-align: center; }
@@ -2002,7 +2018,7 @@
     <button id="detailToggleBtn" onclick="toggleDetails()" class="fab-btn" title="말풍선 토글"><i class="ti ti-message-circle"></i></button>
     <button id="undoBtn" onclick="undo()" class="fab-btn" title="되돌리기" disabled><i class="ti ti-arrow-back-up"></i></button>
     <button id="printFab" onclick="openPrintPreview(fsPhoto ? fsPhoto.data.id : undefined)" class="fab-btn" title="인쇄물 보기 (종이·PDF)" aria-label="인쇄물 보기"><i class="ti ti-printer"></i><span>인쇄</span></button>
-    <button id="stockFab" onclick="openStock()" class="fab-btn" title="재고 세기·발주 목록" aria-label="재고 세기" hidden><i class="ti ti-clipboard-list"></i><span>재고</span></button>
+    <button id="stockFab" onclick="openStock()" class="fab-btn" title="점검: 재고 세기·발주 목록·유통기한" aria-label="점검" hidden><i class="ti ti-clipboard-list"></i><span>점검</span></button>
     <button id="mainModeBtn" onclick="toggleEditMode()" title="구역·물건 고치기" aria-label="구역·물건 고치기">
         <i id="modeIcon" class="ti ti-pencil" style="font-size: 14px;"></i>
         <span id="modeText" style="margin-left: 4px;">구역 고치기</span>
@@ -2132,7 +2148,7 @@
 <div id="stockBackdrop" onclick="closeStock()"></div>
 <div id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockTitle">
     <div class="settings-head">
-        <h3 id="stockTitle"><i class="ti ti-clipboard-list"></i> 재고</h3>
+        <h3 id="stockTitle"><i class="ti ti-clipboard-list"></i> 점검</h3>
         <button type="button" class="stock-help-btn" onclick="toggleStockIntro()" aria-label="재고 쓰는 법" title="쓰는 법">?</button>
         <button class="btn-ghost" onclick="closeStock()" aria-label="닫기"><i class="ti ti-x"></i></button>
     </div>
@@ -2140,6 +2156,7 @@
     <div class="seg seg-strong" role="tablist" aria-label="재고 화면">
         <button type="button" role="tab" data-tab="count" onclick="setStockTab('count')">세기</button>
         <button type="button" role="tab" data-tab="order" onclick="setStockTab('order')" id="stockOrderTab">발주 목록</button>
+        <button type="button" role="tab" data-tab="exp" onclick="setStockTab('exp')" id="stockExpTab">유통기한</button>
     </div>
     <div id="stockList" class="stock-list"></div>
     <div class="print-actions" id="stockActions"></div>
@@ -3569,6 +3586,7 @@
             z.items.forEach(it => state.set(it.name, { checked: true, comment: it.comment || '', par: typeof it.par === 'number' ? String(it.par) : '', pin: !!it.pin, exp: it.exp || '' }));
         }
         const withStock = stockOn();
+        const itemOf = (n) => z.items.find(i => i.name === n) || {};
         const lowNames = new Set(withStock ? z.items.filter(it => zoneLow({ items: [it] })).map(it => it.name) : []); // 칩의 주황 점
         // 품목 목록에 없는 물건이 구역에 들어 있어도 저장할 때 사라지지 않도록 함께 보여준다.
         // 담지 않은 후보는 지금 품목 목록(baseItems)만 — 업종을 고른 뒤 예전 기본 품목이 이 구역에만 남아 보이다가 다음 구역에선 사라져 보였다
@@ -3587,10 +3605,7 @@
                             <i class="ti ti-plus zm-plus" aria-hidden="true"></i><span class="zm-x" title="빼기" aria-label="빼기">×</span>
                         </label>
                         <input type="text" class="cmt" placeholder="세부 위치 메모 (예: 맨 윗칸 왼쪽)" value="${escapeHtml(st.comment)}" enterkeyhint="done" oninput="const it = this.closest('.zm-item'); it.querySelector('.zm-memo').textContent = this.value; it.classList.toggle('has-memo', !!this.value.trim())">
-                        <div class="zm-extra">
-                            <label class="zm-f"><span>유통기한</span><input type="date" class="exp" value="${escapeHtml(st.exp || '')}" aria-label="${escapeHtml(name)} 유통기한"></label>
-                            ${withStock ? `<label class="zm-f zm-f-par"><span>기준 수량</span><input type="number" class="par" inputmode="numeric" min="0" placeholder="–" value="${escapeHtml(st.par || '')}" aria-label="${escapeHtml(name)} 기준 수량 (모자라면 발주 목록에)"></label>` : ''}
-                        </div>
+                        <div class="zm-extra"><span class="zm-info">${zmInfo(name, st, itemOf(name), withStock)}</span>${z.items.some(i => i.name === name) ? `<button type="button" class="zm-to-check" onclick="openCheckFor(this)">점검에서 고치기</button>` : ''}</div>
                         <div class="zm-card-foot"><button type="button" class="zm-pin${st.pin ? ' is-on' : ''}" aria-pressed="${st.pin ? 'true' : 'false'}" onclick="toggleZmPin(this)">${st.pin ? '★' : '☆'} 즐겨찾기</button><button type="button" class="zm-remove" onclick="zmRemoveItem(this)">이 구역에서 빼기</button></div>
                     </div>`;
         };
@@ -4567,6 +4582,23 @@
         updateZoneItemCount(); applyZoneItemFilter();
     }
     // ★ 즐겨찾기(신입용으로도): 지도 쪽지 맨 앞에, 첫 화면 '즐겨' 칩으로 늘 보인다 (구역 창을 닫을 때 저장)
+    // 구역 창은 "어디에·무엇"(메모·즐겨찾기)만 고치고, 수량·기준·유통기한은 보기만 → [점검]에서 한 곳에서 고친다
+    function zmInfo(name, st, it, withStock) {
+        const parts = [];
+        if (withStock && isNum(it.qty)) parts.push(`재고 <b>${it.qty}개</b>${isNum(it.par) ? ` / 기준 ${it.par}` : ''}`);
+        else if (withStock && isNum(it.par)) parts.push(`기준 ${it.par}`);
+        if (it.exp) { const s2 = expState(it); parts.push(`유통기한 <b class="${s2 ? 'zm-info-exp' : ''}">${s2 ? expLabel(it) + ' · ' : ''}${mmdd(it.exp)}</b>`); }
+        return parts.length ? parts.join(' · ') : (withStock ? '수량·유통기한은 점검에서 적어요' : '유통기한은 점검에서 적어요');
+    }
+    function openCheckFor(btn) {
+        const name = btn.closest('.zm-item').querySelector('.cb').value, d = activeData, z = activeZone;
+        const pi = stockPhotos().indexOf(d), zi = d ? d.zones.indexOf(z) : -1;
+        commitZoneModal(false); closeModal();
+        openStock('count');
+        const ii = zi >= 0 ? d.zones[zi].items.findIndex(i => i.name === name) : -1;
+        const row = document.querySelector(`#stockList .stock-row[data-at="${pi}.${zi}.${ii}"]`);
+        if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('is-target'); setTimeout(() => row.classList.remove('is-target'), 1800); }
+    }
     function zmRemoveItem(btn) { const cb = btn.closest('.zm-item').querySelector('.cb'); cb.checked = false; toggleCommentField(cb); }
     function toggleZmPin(btn) {
         const on = btn.classList.toggle('is-on'); btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? '★ 즐겨찾기' : '☆ 즐겨찾기';
@@ -4594,9 +4626,8 @@
             const it = { ...(activeZone.items.find(i => i.name === cb.value) || {}), name: cb.value, comment: cb.parentElement.nextElementSibling.value || "" };
             const parEl = cb.closest('.zm-item').querySelector('.par'); // 재고를 켠 사람만 있는 칸: 비우면 기준을 지운다
             if (parEl) { const v = parEl.value.trim() === '' ? NaN : Math.max(0, Math.floor(Number(parEl.value))); if (isFinite(v)) it.par = v; else delete it.par; }
-            const row = cb.closest('.zm-item'), expEl = row.querySelector('.exp');
-            if (row.querySelector('.zm-pin.is-on')) it.pin = true; else delete it.pin;
-            if (expEl && /^\d{4}-\d{2}-\d{2}$/.test(expEl.value)) it.exp = expEl.value; else delete it.exp;
+            const row = cb.closest('.zm-item');
+            if (row.querySelector('.zm-pin.is-on')) it.pin = true; else delete it.pin; // 유통기한·기준은 [점검]에서 고친다 (여기선 그대로 둔다)
             return it;
         });
         const pick = (i) => ({ name: i.name, comment: i.comment || "", par: typeof i.par === 'number' ? i.par : null, pin: !!i.pin, exp: i.exp || '' });
@@ -4689,7 +4720,7 @@
         try { const dataToSave = imageList.map(data => ({ id: data.id, title: data.title, imgData: (data.img && data.img.src) ? data.img.src : null, zones: data.zones })); safeStorage.setItem('savedSystemData', JSON.stringify(dataToSave)); } catch (e) {}
         try { safeStorage.setItem('baseItems', JSON.stringify(baseItems)); } catch(e) {}
         try { safeStorage.setItem('dataChangedAt', String(Date.now())); } catch(e) {} // 마지막 백업 뒤에 바뀐 게 있는지 (백업 안내 띠)
-        try { syncStockBadge(); } catch (e) {} // [재고] 버튼의 모자란 수
+        try { syncStockBadge(); } catch (e) {} // [점검] 버튼의 모자란 수
     }
     // 입력칸 Enter/“새로 추가” 줄: 목록에 같은 이름이 있으면 체크만, 없으면 새 품목으로 만들고 체크
     function addNewItem() {
@@ -4880,7 +4911,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.11';
+    const APP_VERSION = '베타 2026.10.19.12';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5310,7 +5341,7 @@
         const stock = stockOn(), low = stock ? stockOrderLines().lines.length : 0, week = weekFinds();
         const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
         const ago = (t) => { const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? '오늘' : d === 1 ? '어제' : `${d}일 전`; };
-        const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : low ? `발주할 물건 <b>${low}개</b>` : '재고를 아직 안 셌어요 · 아래 <b>[재고]</b>로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
+        const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : low ? `발주할 물건 <b>${low}개</b>` : '재고를 아직 안 셌어요 · 아래 <b>[점검]</b>으로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
         const tiles = [['구역', zoneCount], ['물건', itemCount], ['이번 주 찾음', week]].concat(stock ? [['부족', low, low > 0]] : [['사진', photos.length]]);
         const expN = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.filter(it => expState(it)).length, 0), 0);
         const foot2 = foot + (expN ? `<span class="brief-exp-line">⚠ 유통기한 임박·지남 <b>${expN}개</b></span>` : ''); // 따로 한 줄 (이어 붙이면 줄이 넘쳐 읽기 어려웠다)
@@ -6961,24 +6992,39 @@
         if (!stockOn() || !isNum(it.qty)) return '';
         return `<b class="zl-qty${isNum(it.par) && it.qty < it.par ? ' is-low' : ''}">${it.qty}개</b>`; // "개"를 붙여 유통기한 D-day 숫자와 헷갈리지 않게
     }
+    // 유통기한을 적은 물건 (가까운 날짜 순). 재고 세기를 꺼도 유통기한은 [점검]에서 본다
+    function anyExp() { return stockPhotos().some(d => d.zones.some(z => z.items.some(it => it.exp))); }
+    function expLines() {
+        const photos = stockPhotos(), multi = photos.length > 1, out = [];
+        photos.forEach((d, pi) => d.zones.forEach((z, zi) => z.items.forEach(it => {
+            const days = expDays(it); if (days === null) return;
+            out.push({ it, days, state: expState(it), where: stockCode(pi, zi, multi) + (z.name ? ` ${z.name}` : '') });
+        })));
+        return out.sort((a, b) => a.days - b.days);
+    }
+    const mmdd = (ymd) => { const [, m, d] = (ymd || '').split('-'); return m ? `${+m}/${+d}` : ''; };
     function syncStockRow() {
         const el = document.getElementById('stockRowText'); if (el) el.textContent = stockOn() ? '켜짐' : '꺼짐';
-        const fab = document.getElementById('stockFab'); if (fab) { fab.hidden = !stockOn(); fab.classList.toggle('is-new', safeStorage.getItem('stockSeen') !== '1'); }
+        const fab = document.getElementById('stockFab'); if (fab) { fab.hidden = !(stockOn() || anyExp()); fab.classList.toggle('is-new', safeStorage.getItem('stockSeen') !== '1'); }
         syncStockBadge();
     }
-    // [재고] 버튼의 주황 숫자 = 발주 목록에 오를 물건 수 (저장할 때마다 다시 센다)
+    // [점검] 버튼: 주황 숫자 = 발주할 물건, 빨간 숫자 = 유통기한 임박·지남 (저장할 때마다 다시 센다)
     function syncStockBadge() {
         const fab = document.getElementById('stockFab'); if (!fab) return;
-        let em = fab.querySelector('.fab-badge'); if (!em) { em = document.createElement('em'); em.className = 'fab-badge'; fab.appendChild(em); }
-        const n = stockOn() ? stockOrderLines().lines.length : 0;
-        em.textContent = n; em.hidden = !n; fab.setAttribute('aria-label', n ? `재고 세기 · 모자란 물건 ${n}개` : '재고 세기');
+        fab.hidden = !(stockOn() || anyExp());
+        let em = fab.querySelector('.fab-badge:not(.is-exp)'); if (!em) { em = document.createElement('em'); em.className = 'fab-badge'; fab.appendChild(em); }
+        let ex = fab.querySelector('.fab-badge.is-exp'); if (!ex) { ex = document.createElement('em'); ex.className = 'fab-badge is-exp'; fab.appendChild(ex); }
+        const n = stockOn() ? stockOrderLines().lines.length : 0, e = expLines().filter(l => l.state).length;
+        em.textContent = n; em.hidden = !n; ex.textContent = e; ex.hidden = !e;
+        fab.setAttribute('aria-label', ['점검', n ? `모자란 물건 ${n}개` : '', e ? `유통기한 임박·지남 ${e}개` : ''].filter(Boolean).join(' · '));
         syncThumbLow();
     }
     // 부족 레이더: 모자란 칸마다 주황 고리가 두 번 퍼진다 (사진 위에 잠깐 얹었다 걷는 그림)
-    function stockRadar() {
+    function stockRadar(kind) {
         if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const isExp = kind === 'exp', ring = isExp ? '#ff4d5e' : NEON_LOW, flashRgb = isExp ? '255,60,80' : '255,150,40';
         stockPhotos().forEach(d => {
-            const low = d.zones.filter(zoneLow), base = d.canvas, stage = d.noteStage;
+            const low = d.zones.filter(isExp ? zoneExp : zoneLow), base = d.canvas, stage = d.noteStage;
             if (!low.length || !base || !stage || !base.clientWidth) return;
             const W = base.clientWidth, H = base.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1), sc = W / base.width;
             const cv = document.createElement('canvas'); cv.className = 'ai-scan';
@@ -6998,12 +7044,12 @@
                     [0, 650].forEach(d0 => {
                         const age = el - d0 - i * 90; if (age < 0 || age > LIFE) return;
                         const p = age / LIFE, r = 6 + maxR * easeOutCubic(p);
-                        ctx.save(); ctx.strokeStyle = NEON_LOW; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                        ctx.save(); ctx.strokeStyle = ring; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
                         ctx.globalAlpha = (1 - p) * 0.25; ctx.lineWidth = 8; ctx.stroke();
                         ctx.globalAlpha = (1 - p) * 0.9; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
                     });
                     const flash = Math.max(0, 1 - el / 700);
-                    if (flash) { ctx.fillStyle = `rgba(255,150,40,${0.28 * flash})`; ctx.fillRect(x, y, w, h); }
+                    if (flash) { ctx.fillStyle = `rgba(${flashRgb},${0.28 * flash})`; ctx.fillRect(x, y, w, h); }
                 });
                 requestAnimationFrame(frame);
             })(t0);
@@ -7013,37 +7059,38 @@
     let lastLowShown = null, stockRadarDue = false;
     // 사진이 여러 장이면 지금 보는 사진만 화면에 있다 → 부족한 칸이 있는 사진을 실제로 띄운 뒤 옮긴다
     // (지금 보는 사진에 부족한 칸이 있으면 그 사진, 없으면 순서상 첫 사진. 나머지는 사진 줄의 주황 점으로)
-    function showLowOnMap() {
+    function showLowOnMap(kind) { // kind 'exp': 유통기한 임박·지남 칸 (빨강)
+        const isExp = kind === 'exp', has = isExp ? zoneExp : zoneLow;
         closeStock(true);
-        const lows = stockPhotos().filter(p => p.zones.some(zoneLow));
+        const lows = stockPhotos().filter(p => p.zones.some(has));
         if (!lows.length) return;
         const d = lows.find(p => p.id == currentPhotoId) || lows[0];
         showPhoto(d.id);
-        lastLowShown = stockOrderLines().lines.length; stockRadarDue = false;
+        if (!isExp) { lastLowShown = stockOrderLines().lines.length; stockRadarDue = false; }
         requestAnimationFrame(() => {
             const box = d.zoomBox || d.canvas; if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            setTimeout(stockRadar, 550);
+            setTimeout(() => stockRadar(kind), 550);
         });
-        if (lows.length > 1) showToast(`부족한 칸이 있는 사진 ${lows.length}장 · 위 사진 줄의 주황 점 사진을 눌러 보세요`, 4000);
+        if (lows.length > 1) showToast(`${isExp ? '유통기한 임박·지남 칸이' : '부족한 칸이'} 있는 사진 ${lows.length}장 · 위 사진 줄의 ${isExp ? '' : '주황 점 '}사진을 눌러 보세요`, 4000);
     }
     // 사진 줄 썸네일: 부족한 칸이 있는 사진에 주황 점
     function syncThumbLow() {
         document.querySelectorAll('#photoStrip .photo-thumb').forEach(b => {
             const d = imageList.find(x => String(x.id) === b.dataset.id);
-            b.classList.toggle('has-low', !!d && d.zones.some(zoneLow));
+            b.classList.toggle('has-low', !!d && d.zones.some(z => zoneLow(z) || zoneExp(z)));
         });
     }
     function toggleStockMode() {
         const on = !stockOn();
         if (on) safeStorage.removeItem(STOCK_KEY); else safeStorage.setItem(STOCK_KEY, '0');
         syncStockRow(); imageList.forEach(d => render(d));
-        showToast(on ? '재고 세기를 켰어요. 아래 버튼 줄의 [재고]로 세요' : '재고 세기를 껐어요. 적어 둔 수량은 그대로 있어요', 3000);
+        showToast(on ? '재고 세기를 켰어요. 아래 버튼 줄의 [점검]으로 세요' : '재고 세기를 껐어요. 적어 둔 수량은 그대로 있어요', 3000);
     }
     const stockPhotos = () => imageList.filter(d => d.id !== 'dummy_root');
     function stockCode(pi, zi, multi) { return multi ? `${photoLetter(pi)}-${zi + 1}` : String(zi + 1); }
     function openStock(tab) {
         if (!stockPhotos().some(d => d.zones.some(z => z.items.length))) { alert('먼저 구역에 물건을 적어 주세요.'); return; }
-        stockTab = tab || 'count';
+        stockTab = tab || (stockOn() ? 'count' : 'exp');
         if (safeStorage.getItem('stockSeen') !== '1') { safeStorage.setItem('stockSeen', '1'); document.getElementById('stockFab').classList.remove('is-new'); } // 한 번 열면 형광 테두리 끝
         renderStock();
         if (document.getElementById('stockModal').style.display === 'flex') return; // 이미 열려 있음: 스크롤 잠금을 또 걸면 닫아도 안 풀려 화면이 굳었다
@@ -7114,13 +7161,17 @@
         const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
         const { lines, uncounted } = stockOrderLines();
         document.querySelectorAll('#stockModal [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === stockTab)));
+        const S = stockOn(), exps = expLines(), expN = exps.filter(l => l.state).length;
         document.getElementById('stockOrderTab').textContent = lines.length ? `발주 목록 (${lines.length})` : '발주 목록';
+        document.getElementById('stockOrderTab').classList.toggle('stock-tab-off', !S); // 재고 세기를 끈 사람은 세기(날짜만)·유통기한
+        document.getElementById('stockExpTab').textContent = expN ? `유통기한 (${expN})` : '유통기한';
         document.getElementById('stockSub').textContent = stockTab === 'count'
-            ? `선반 순서대로 세요.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`
+            ? (S ? `선반 순서대로 세요. 날짜 칩을 누르면 유통기한.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}` : '물건마다 날짜 칩을 눌러 유통기한을 적어요.')
+            : stockTab === 'exp' ? `날짜가 가까운 순이에요. ${EXP_SOON_DAYS}일 안이면 빨강.`
             : '기준보다 모자란 것만 모았어요. 보내기로 카톡·문자에 붙여 넣으세요.';
         const actions = document.getElementById('stockActions');
         if (stockTab === 'count') {
-            const intro = (stockIntroOpen || safeStorage.getItem('stockIntroSeen') !== '1') ? `<div class="stock-intro" role="note">
+            const intro = S && (stockIntroOpen || safeStorage.getItem('stockIntroSeen') !== '1') ? `<div class="stock-intro" role="note">
                 <b class="t">처음이세요? 세 가지만 알면 돼요</b>
                 <ol><li><b>− ? +</b> 로 지금 몇 개 있는지 세요<small>모르면 비워 둬도 돼요</small></li>
                 <li><b>기준</b> = 이만큼은 있어야 하는 수<small>기준보다 적으면 빨갛게 보여요</small></li>
@@ -7131,15 +7182,22 @@
                     z.items.map((it, ii) => {
                         const low = isNum(it.qty) && isNum(it.par) && it.qty < it.par;
                         return `<div class="stock-row${low ? ' is-low' : ''}" data-at="${pi}.${zi}.${ii}">
-                            <span class="stock-name">${escapeHtml(it.name)}${(it.comment || '').trim() ? `<small>${escapeHtml(it.comment.trim())}</small>` : ''}</span>
-                            <span class="stock-ctl"><button type="button" data-act="dec" aria-label="${escapeHtml(it.name)} 하나 빼기">−</button><input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="qty" value="${isNum(it.qty) ? it.qty : ''}" placeholder="?" aria-label="${escapeHtml(it.name)} 지금 수량"><button type="button" data-act="inc" aria-label="${escapeHtml(it.name)} 하나 더하기">+</button></span>
-                            <label class="stock-par">기준<input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="par" value="${isNum(it.par) ? it.par : ''}" placeholder="–" aria-label="${escapeHtml(it.name)} 기준 수량"></label>
+                            <span class="stock-name">${escapeHtml(it.name)}${(it.comment || '').trim() ? `<small>${escapeHtml(it.comment.trim())}</small>` : ''}${expChip(it)}</span>
+                            ${S ? `<span class="stock-ctl"><button type="button" data-act="dec" aria-label="${escapeHtml(it.name)} 하나 빼기">−</button><input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="qty" value="${isNum(it.qty) ? it.qty : ''}" placeholder="?" aria-label="${escapeHtml(it.name)} 지금 수량"><button type="button" data-act="inc" aria-label="${escapeHtml(it.name)} 하나 더하기">+</button></span>
+                            <label class="stock-par">기준<input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="par" value="${isNum(it.par) ? it.par : ''}" placeholder="–" aria-label="${escapeHtml(it.name)} 기준 수량"></label>` : ''}
                         </div>`;
                     }).join('') : '').join('');
                 return zones ? `<div class="stock-photo">${multi ? `${photoLetter(pi)} · ` : ''}${escapeHtml(d.title || '')}</div>${zones}` : '';
             }).join('') || '<div class="stock-empty">구역에 적은 물건이 없어요.</div>';
-            actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="closeStock()">닫기</button>
-                <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="finishStockCount()"><i class="ti ti-check"></i> 다 셌어요</button>`;
+            actions.innerHTML = S ? `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="closeStock()">닫기</button>
+                <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="finishStockCount()"><i class="ti ti-check"></i> 다 셌어요</button>`
+                : `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="closeStock()">닫기</button>
+                <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="setStockTab('exp')">유통기한 보기</button>`;
+        } else if (stockTab === 'exp') {
+            list.innerHTML = exps.length ? exps.map(l => `<div class="stock-order-row"><span class="n exp${l.state ? ' is-' + l.state : ''}"><span>${l.state ? expLabel(l.it) : `D-${l.days}`}</span></span><span class="t">${escapeHtml(l.it.name)}<small>${mmdd(l.it.exp)}까지 · ${escapeHtml(l.where)}</small></span></div>`).join('')
+                : `<div class="stock-empty">유통기한을 적은 물건이 없어요.<br>[세기]에서 물건마다 <b>날짜 칩</b>을 눌러 적으면 여기 가까운 순으로 모여요.</div>`;
+            actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="setStockTab('count')">세기로</button>
+                <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="showLowOnMap('exp')"${expN ? '' : ' disabled'}><i class="ti ti-radar-2"></i> 지도에서 보기</button>`;
         } else {
             list.innerHTML = lines.length ? lines.map(o => `<div class="stock-order-row"><span class="n">+${o.need}</span><span class="t">${escapeHtml(o.name)}<small>지금 ${o.qty} / 기준 ${o.par} · ${escapeHtml(o.where.join(', '))}</small></span></div>`).join('')
                 + (uncounted ? `<div class="stock-empty" style="padding: 12px 8px;">기준은 있는데 아직 안 센 물건 ${uncounted}개는 빠졌어요.</div>` : '')
@@ -7147,6 +7205,10 @@
             actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="${lines.length ? 'showLowOnMap()' : "setStockTab('count')"}">${lines.length ? '<i class="ti ti-radar-2"></i> 지도에서 보기' : '세기로'}</button>
                 <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="shareStockOrder()"${lines.length ? '' : ' disabled'}><i class="ti ti-send"></i> 보내기</button>`;
         }
+    }
+    function expChip(it) { // 세기 줄의 유통기한 칩: 없으면 "기한 +", 있으면 날짜나 D-day
+        const st = expState(it), txt = !it.exp ? '기한 +' : st ? `${expLabel(it)} · ${mmdd(it.exp)}` : `${mmdd(it.exp)}까지`;
+        return `<label class="stock-exp${it.exp ? ' has-date' : ''}${st ? ' is-' + st : ''}"><span>${txt}</span><input type="date" data-f="exp" value="${escapeHtml(it.exp || '')}" aria-label="${escapeHtml(it.name)} 유통기한"></label>`;
     }
     function stockItemAt(row) {
         const [pi, zi, ii] = (row.dataset.at || '').split('.').map(Number), d = stockPhotos()[pi];
@@ -7164,6 +7226,12 @@
     document.addEventListener('change', (e) => {
         const input = e.target.closest('#stockList input[data-f]'); if (!input) return;
         const row = input.closest('.stock-row'), it = row && stockItemAt(row); if (!it) return;
+        if (input.dataset.f === 'exp') { // 유통기한: 날짜를 지우면 없앤다
+            if (/^\d{4}-\d{2}-\d{2}$/.test(input.value)) it.exp = input.value; else delete it.exp;
+            input.closest('.stock-exp').outerHTML = expChip(it); queueStockSave();
+            document.getElementById('stockExpTab').textContent = (n => n ? `유통기한 (${n})` : '유통기한')(expLines().filter(l => l.state).length);
+            return;
+        }
         const v = input.value.trim() === '' ? null : Math.max(0, Math.floor(Number(input.value)));
         if (v === null || !isFinite(v)) { delete it[input.dataset.f]; input.value = ''; } else { it[input.dataset.f] = v; input.value = v; }
         syncStockRowLow(row, it); queueStockSave();
