@@ -758,11 +758,6 @@
         .print-zoom-ctl #printZoomOut, .print-zoom-ctl #printZoomIn { font-size: 19px; font-weight: 600; line-height: 1; } /* 아이콘 글꼴이 늦게 와도 보이게 글자로 */
         .print-zoom-ctl button:disabled { opacity: 0.35; cursor: default; }
         .print-zoom-ctl .pz-val { min-width: 46px; padding: 0 2px; border-left: 1px solid rgba(255,255,255,0.25); border-right: 1px solid rgba(255,255,255,0.25); border-radius: 0; font-variant-numeric: tabular-nums; }
-        /* PDF 만드는 중: 미리보기 자리에 남색 화면, 만들어진 쪽이 스캔 줄을 따라 위에서부터 드러난다 */
-        .pdf-forge { position: absolute; inset: 0; z-index: 5; border-radius: var(--radius-md); background: #0b1026; overflow: hidden; }
-        .pdf-forge canvas { display: block; width: 100%; height: 100%; max-width: none; margin: 0; border: 0; border-radius: 0; }
-        .pdf-forge-cap { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-size: 13.5px; font-weight: 700; color: #e6fdff; text-shadow: 0 0 10px rgba(70,235,255,0.8); pointer-events: none; }
-        .pdf-forge-cap.is-done { color: #ffd6f6; text-shadow: 0 0 12px rgba(255,90,217,0.9); }
         .print-page-badge { position: absolute; bottom: 8px; right: 8px; padding: 3px 9px; border-radius: 12px; background: rgba(26,26,24,0.72); color: #fff; font-size: 12px; font-weight: 700; pointer-events: none; }
         #printModal .settings-head { margin-bottom: 12px; gap: 10px; }
         /* 옵션 + 미리보기 묶음. 좁은 화면: 위아래(옵션은 한 줄 요약으로 접힘) · 넓은 화면: 왼쪽 옵션, 오른쪽 미리보기 */
@@ -2765,6 +2760,13 @@
         const n = v => typeof v === 'number' && isFinite(v);
         return z.items.some(it => n(it.qty) && n(it.par) && it.qty < it.par);
     }
+    // 평소 칸 테두리: 테마 색 선 + 가운데 흰 심 (빛 번짐 없음). 분홍 네온은 찾은 칸·AI 연출 같은 "순간"에만 쓴다
+    function strokeTheme(ctx, z, k) {
+        ctx.save();
+        ctx.lineWidth = Math.max(2, 1.5 * k); ctx.strokeStyle = themeColors.accent2 || '#52b788'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.lineWidth = Math.max(1, 0.5 * k); ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
+        ctx.restore();
+    }
     function strokeNeon(ctx, z, k, low) {
         ctx.save();
         ctx.shadowColor = low ? NEON_LOW_GLOW : NEON_ZONE_GLOW; ctx.shadowBlur = Math.max(8, 6 * k);
@@ -2832,24 +2834,25 @@
         step('AI가 선반을 찾는 중', S.t0 + 380);
         const sc = W / base.width, PERIOD = 1500;
         cv.addEventListener('click', (e) => { e.stopPropagation(); S.skip = true; });
-        const drawLog = (now, a) => {
-            const lines = S.log.filter(l => now >= l.at).slice(-4), lh = 18, x = 12;
-            ctx.save();
-            const bandH = lines.length * lh + 22, band = ctx.createLinearGradient(0, H - bandH, 0, H); // 아래쪽을 살짝 더 어둡게 (칸 위에 겹쳐도 글자가 읽히게)
-            band.addColorStop(0, 'rgba(4,8,22,0)'); band.addColorStop(0.35, `rgba(4,8,22,${0.55 * a})`); band.addColorStop(1, `rgba(4,8,22,${0.75 * a})`);
-            ctx.fillStyle = band; ctx.fillRect(0, H - bandH, W, bandH);
-            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        const drawLog = (now, a) => { // 사진 가운데에 어두운 판을 깔고 그 위에 가운데 정렬로 쌓는다
+            const lines = S.log.filter(l => now >= l.at).slice(-4), lh = 19;
+            if (!lines.length) return;
+            ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const full = (l) => { const done = l.done && now >= l.done; return `${done ? '✓' : '›'} ${l.text}${done && l.detail ? `  ${l.detail}` : ''}`; };
+            ctx.font = '800 12.5px sans-serif';
+            const bw = Math.min(W - 24, Math.max(...lines.map(l => ctx.measureText(full(l) + '...').width)) + 28), bh = lines.length * lh + 16;
+            const bx = (W - bw) / 2, by = (H - bh) / 2;
+            ctx.globalAlpha = a; ctx.fillStyle = 'rgba(4,8,22,0.72)'; ctx.beginPath(); drawSafeRoundRect(ctx, bx, by, bw, bh, 12); ctx.fill();
+            ctx.strokeStyle = `rgba(${NEON_EDGE_RGB},0.35)`; ctx.lineWidth = 1; ctx.stroke();
             lines.forEach((l, i) => {
-                const y = H - 14 - (lines.length - 1 - i) * lh, inA = Math.min(1, (now - l.at) / 220), done = l.done && now >= l.done;
-                const old = (lines.length - 1 - i) * 0.22; // 위로 밀려난 줄은 흐리게
-                ctx.globalAlpha = a * inA * Math.max(0.35, 1 - old);
+                const y = by + 8 + lh / 2 + i * lh, inA = Math.min(1, (now - l.at) / 220), done = l.done && now >= l.done;
+                const old = (lines.length - 1 - i) * 0.2; // 위로 밀려난 줄은 흐리게
+                ctx.globalAlpha = a * inA * Math.max(0.4, 1 - old);
                 ctx.font = (l.hi ? '800 ' : '700 ') + '12.5px sans-serif';
                 ctx.shadowColor = l.hi ? NEON_ZONE_GLOW : `rgba(${NEON_EDGE_RGB},0.9)`; ctx.shadowBlur = 8;
                 const mark = done ? '✓' : '›', dots = done ? '' : '.'.repeat(1 + Math.floor(now / 330) % 3);
-                ctx.fillStyle = l.hi ? '#ffd6f6' : done ? 'rgba(160,240,255,0.85)' : '#e6fdff';
-                const yy = y + (1 - inA) * 6; // 살짝 올라오며 나타남
-                ctx.fillText(`${mark} ${l.text}${dots}`, x, yy);
-                if (done && l.detail) { const w = ctx.measureText(`${mark} ${l.text}`).width; ctx.fillStyle = l.hi ? '#ffd6f6' : '#ffb8ef'; ctx.fillText(`  ${l.detail}`, x + w, yy); }
+                ctx.fillStyle = l.hi ? '#ffd6f6' : done ? 'rgba(160,240,255,0.9)' : '#e6fdff';
+                ctx.fillText(`${mark} ${l.text}${dots}${done && l.detail ? `  ${l.detail}` : ''}`, W / 2, y + (1 - inA) * 5);
             });
             ctx.restore();
         };
@@ -4352,13 +4355,13 @@
                     // 네온 테두리: 어두운 바탕선 위에 빛나는 선 (흰 수납장·어두운 창고 어디서든 보이게)
                     const k = displayScale(canvas);
                     ctx.lineWidth = Math.max(5, 3 * k); ctx.strokeStyle = 'rgba(16,0,28,0.55)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
-                    strokeNeon(ctx, z, k, zoneLow(z));
+                    if (zoneLow(z)) strokeNeon(ctx, z, k, true); else strokeTheme(ctx, z, k); // 부족한 칸만 주황 네온
                 } else if (isEditMode && !pickMode && !isHovered && z !== activeZone) {
                     // 고치기 기본 구역: 2px 고정이면 폰에서 1px도 안 돼 사진에 묻혔다 → 화면 배율만큼 굵게 + 어두운 테두리 위에 색 선
                     const k = displayScale(canvas);
                     ctx.fillRect(z.x, z.y, z.w, z.h);
                     ctx.lineWidth = Math.max(5, 3.2 * k); ctx.strokeStyle = 'rgba(16,0,28,0.5)'; ctx.strokeRect(z.x, z.y, z.w, z.h);
-                    strokeNeon(ctx, z, k);
+                    strokeTheme(ctx, z, k);
                 } else { ctx.fillRect(z.x, z.y, z.w, z.h); ctx.strokeRect(z.x, z.y, z.w, z.h); if (z === activeZone && !isHovered && !pickMode) strokeNeon(ctx, z, displayScale(canvas) * 1.6); }
             }
             if (!cleanView) drawEditZoneInfo(ctx, z, z === activeZone);
@@ -4808,7 +4811,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.2';
+    const APP_VERSION = '베타 2026.10.19.3';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6817,59 +6820,6 @@
         });
         return jsPdfLoading;
     }
-    // PDF 만드는 연출: 실제로 만든 쪽을 받아서(page) 위에서부터 스캔하듯 드러내고, 끝나면(done) 빛나며 완성
-    function startPdfForge() {
-        const wrap = document.getElementById('printPreviewWrap');
-        if (!wrap || !wrap.clientWidth || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return null;
-        const box = document.createElement('div'); box.className = 'pdf-forge';
-        box.innerHTML = '<canvas></canvas><div class="pdf-forge-cap">PDF 만드는 중…</div>';
-        wrap.appendChild(box);
-        const cv = box.querySelector('canvas'), cap = box.querySelector('.pdf-forge-cap'), dpr = Math.min(2, window.devicePixelRatio || 1);
-        const W = box.clientWidth, H = box.clientHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-        const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
-        const F = { img: null, prev: null, at: 0, n: 0, total: 0, doneAt: 0, raf: 0, t0: performance.now() };
-        const REVEAL = 650;
-        function frame(now) {
-            ctx.clearRect(0, 0, W, H);
-            ctx.strokeStyle = 'rgba(70,235,255,0.07)'; ctx.lineWidth = 1; ctx.beginPath();
-            for (let x = 0; x < W; x += 22) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
-            for (let y = 0; y < H; y += 22) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
-            ctx.stroke();
-            const ph = H - 52, pw = ph * 210 / 297, s = Math.min(1, (W - 24) / pw), w = pw * s, h = ph * s, x = (W - w) / 2, y = 12; // A4 한 장 자리
-            ctx.save(); ctx.strokeStyle = 'rgba(70,235,255,0.45)'; ctx.setLineDash([5, 4]); ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); ctx.restore();
-            if (F.prev) { ctx.globalAlpha = 0.5; ctx.drawImage(F.prev, x, y, w, h); ctx.globalAlpha = 1; }
-            if (F.img) {
-                const p = Math.min(1, (now - F.at) / REVEAL), sy = y + h * p;
-                ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, sy - y); ctx.clip(); ctx.drawImage(F.img, x, y, w, h); ctx.restore();
-                if (p < 1) { // 스캔 줄
-                    const g = ctx.createLinearGradient(0, sy - 40, 0, sy); g.addColorStop(0, 'rgba(70,235,255,0)'); g.addColorStop(1, 'rgba(70,235,255,0.35)');
-                    ctx.fillStyle = g; ctx.fillRect(x, sy - 40, w, 40);
-                    ctx.save(); ctx.shadowColor = 'rgba(70,235,255,1)'; ctx.shadowBlur = 12; ctx.fillStyle = '#c9fbff'; ctx.fillRect(x - 6, sy - 1, w + 12, 2); ctx.restore();
-                }
-            } else { // 첫 쪽이 오기 전: 빈 종이 위로 스캔 줄만 오르내린다
-                const sy = y + h * (0.5 + 0.5 * Math.sin((now - F.t0) / 300));
-                ctx.save(); ctx.shadowColor = 'rgba(70,235,255,1)'; ctx.shadowBlur = 12; ctx.fillStyle = '#c9fbff'; ctx.fillRect(x - 6, sy - 1, w + 12, 2); ctx.restore();
-            }
-            if (F.doneAt) { // 완성: 종이 테두리가 분홍으로 빛난다
-                const q = Math.min(1, (now - F.doneAt) / 300);
-                ctx.save(); ctx.globalAlpha = q; ctx.shadowColor = NEON_ZONE_GLOW; ctx.shadowBlur = 18; ctx.lineWidth = 2.5; ctx.strokeStyle = NEON_ZONE; ctx.strokeRect(x, y, w, h); ctx.restore();
-            }
-            F.raf = requestAnimationFrame(frame);
-        }
-        F.raf = requestAnimationFrame(frame);
-        const loadImg = (src) => new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = src; });
-        return {
-            async page(src, n, total) {
-                const im = await loadImg(src); if (!im) return;
-                F.prev = F.img; F.img = im; F.at = performance.now(); F.n = n; cap.textContent = `PDF 만드는 중… ${n}${total ? ` / ${total}` : ''}쪽`; },
-            async done(total) {
-                // 일부러 기다리게 하지 않는다: 만드는 동안만 보여 주고, 완성 표시는 0.3초만
-                F.doneAt = performance.now(); F.at = Math.min(F.at, F.doneAt - REVEAL); cap.classList.add('is-done'); cap.textContent = `PDF 완성 ✓ ${total}쪽`;
-                await new Promise(r => setTimeout(r, 300));
-            },
-            end() { cancelAnimationFrame(F.raf); box.remove(); }
-        };
-    }
     async function downloadReportAsPDF() {
         const btn = document.getElementById('printDownloadBtn');
         if (btn.disabled) return;
@@ -6877,27 +6827,24 @@
         if (photos.length === 0) { alert("다운로드할 데이터가 없습니다. 먼저 매장 사진을 등록해주세요."); return; }
         const busy = (t) => { btn.innerHTML = `<i class="ti ti-loader-2" style="animation: spin 0.8s linear infinite;"></i> ${t}`; };
         btn.disabled = true; busy('PDF 만드는 중…');
-        let forge = null;
         try {
             try { await loadJsPdf(); } catch (e) {}
             if (!window.jspdf || !window.jspdf.jsPDF) { alert("PDF 만드는 도구를 불러오지 못했어요. 인터넷 연결을 확인하고 잠시 뒤 다시 눌러주세요."); return; }
             const doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
             // 미리보기에 보이는 그대로 (양식·범위), 종이 해상도로. 덩어리마다 숨 돌리며 진행을 보여 준다
             let k = 0;
-            forge = startPdfForge();
             for (const fn of printChunks()) {
                 busy(`PDF 만드는 중…${k ? ` ${k}${printPageCount ? `/${printPageCount}` : ''}쪽` : ''}`);
                 await printYield();
-                for (const imgData of fn()) { if (k) doc.addPage(); doc.addImage(imgData, 'JPEG', 0, 0, PRINT.pageWmm, PRINT.pageHmm); k++; if (forge) await forge.page(imgData, k, printPageCount); }
+                for (const imgData of fn()) { if (k) doc.addPage(); doc.addImage(imgData, 'JPEG', 0, 0, PRINT.pageWmm, PRINT.pageHmm); k++; }
             }
-            if (forge) { busy('PDF 완성'); await forge.done(k); }
             const F = PRINT_FORMS[printOpts.form] || PRINT_FORMS.map, one = photos.length > 1 && printScope !== 'all' ? photos.find(d => d.id == printPreviewId) : null;
             const part = one ? '_' + (one.title || '').replace(/[\\/:*?"<>|\s]+/g, '').slice(0, 20) : '';
             doc.save(`${storeFileName() || APP_NAME}_${F.file}${part}_${fileDate()}.pdf`);
         } catch (error) {
             console.error("PDF 생성 중 오류 발생:", error);
             alert("PDF 생성 중 문제가 발생했습니다.");
-        } finally { if (forge) forge.end(); btn.disabled = false; syncPrintBtn(); }
+        } finally { btn.disabled = false; syncPrintBtn(); }
     }
 
     // 초기 실행 로직 (읽기 전용 상태로 시작)
