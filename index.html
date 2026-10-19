@@ -723,7 +723,11 @@
             border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
             z-index: 9999; overflow-y: auto; box-sizing: border-box;
         }
-        #settingsModal { z-index: 1020; max-width: 420px; }
+        #settingsModal { z-index: 1020; max-width: 420px; padding-top: 0; }
+        /* 설정 머리: 내려도 위에 붙어 있어 [닫기]를 찾으러 다시 올라가지 않게 */
+        #settingsModal .settings-head { position: sticky; top: 0; z-index: 2; margin: 0 -24px 14px; padding: 16px 24px 12px; background: var(--card); border-bottom: 1px solid var(--border); }
+        .settings-close { display: inline-flex; align-items: center; gap: 4px; min-height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg); color: var(--text); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+        #settingsBackdrop { display: none; position: fixed; inset: 0; z-index: 1019; background: rgba(26,26,24,0.45); }
         /* 구역 고치기 첫 안내: 편집 띠(1068)·완료 버튼 위에 뜨게 */
         #editIntro, #photoTip, #iosInstall { z-index: 10001; max-width: 420px; }
         #iosInstallBackdrop { display: none; position: fixed; inset: 0; background: rgba(26,26,24,0.45); z-index: 10000; }
@@ -2208,10 +2212,11 @@
     </div>
     <div id="printViewerBody" class="print-viewer-body"></div>
 </div>
+<div id="settingsBackdrop" onclick="closeSettingsModal()"></div>
 <div id="settingsModal">
     <div class="settings-head">
         <h3><i class="ti ti-settings"></i> 설정</h3>
-        <button class="btn-ghost" onclick="closeSettingsModal()" aria-label="닫기"><i class="ti ti-x"></i></button>
+        <button type="button" class="settings-close" onclick="closeSettingsModal()">닫기 <span aria-hidden="true">✕</span></button>
     </div>
     <!-- 설정 순서: 자주 쓰고 중요한 것부터 — 백업 · 매장(재고 세기) · 도움 · 화면(한 번 정하면 끝) · 정보·기타(지우기는 맨 아래) -->
     <section class="settings-sec">
@@ -3416,8 +3421,10 @@
         document.getElementById('contactRow').hidden = !CONTACT.url;
         document.getElementById('contactText').textContent = CONTACT.label || '';
         document.getElementById('settingsModal').style.display = 'block';
+        document.getElementById('settingsBackdrop').style.display = 'block'; // 바깥을 눌러도 닫힌다
+        document.getElementById('settingsModal').scrollTop = 0;
     }
-    function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
+    function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; document.getElementById('settingsBackdrop').style.display = 'none'; }
     // 팝업·시트가 떠 있는 동안 뒤 화면이 같이 드래그되지 않도록 페이지를 제자리에 고정
     let pageScrollLocks = 0, pageScrollY = 0;
     function lockPageScroll() {
@@ -4811,7 +4818,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.4';
+    const APP_VERSION = '베타 2026.10.19.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
