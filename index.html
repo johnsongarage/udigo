@@ -1493,10 +1493,12 @@
         .zl-exp { margin-left: 4px; padding: 0 5px; border-radius: 7px; background: #ffe3e6; color: #d0283a; font-size: 11px; font-weight: 800; }
         .zl-exp.is-over { background: #d0283a; color: #fff; }
         /* 구역 창: 담긴 물건을 누르면 펼쳐지는 칸에 [★ 신입용 고정]·유통기한 */
+        .zm-head-hint { margin-left: 4px; font-size: 11.5px; font-weight: 500; color: var(--text3); }
         .zm-extra { display: none; }
         .zm-body .zm-item.memo-open .zm-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -4px 10px 10px; font-size: 12.5px; color: var(--on-accent); }
         .zm-pin { min-height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 17px; background: var(--card); color: var(--text2); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
         .zm-pin.is-on { background: #fff3c4; border-color: #e0a800; color: #8a6400; }
+        .zm-pin.is-on::first-letter { color: #e0a800; }
         .zm-exp { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
         .zm-exp input { height: 34px; padding: 0 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; box-sizing: border-box; }
         .zm-pinv { margin-right: 2px; color: #e0a800; font-size: 12px; }
@@ -2082,7 +2084,7 @@
         </div>
         <!-- 담긴 물건(눌러서 메모, ×로 빼기) / 아래: 자주 쓰는 물건 후보(눌러서 담기, 처음엔 8개만) -->
         <div class="zm-section-head">
-            <span>이 구역에 있는 것</span>
+            <span>이 구역에 있는 것 <small class="zm-head-hint">물건을 누르면 메모·즐겨찾기·유통기한</small></span>
             <span id="zoneItemCount" class="zm-count"></span>
         </div>
         <div id="zmPicked" class="zm-chips is-picked" data-empty="아직 없어요 · 위에서 찾거나 아래에서 눌러 담아요"></div>
@@ -3566,11 +3568,11 @@
                         <label class="zm-item-main" onclick="zmChipClick(event, this)">
                             <input type="checkbox" class="cb" value="${escapeHtml(name)}" ${st.checked ? 'checked' : ''} onchange="toggleCommentField(this)">
                             <span class="zm-check" aria-hidden="true"></span>
-                            <i class="ti ti-note zm-memo-ic" aria-label="메모 있음"></i>${st.pin ? '<small class="zm-pinv" aria-label="신입용 고정">★</small>' : ''}<span class="zm-item-name">${escapeHtml(name)}</span>${st.exp && expState(st) ? `<small class="zm-expv">${expLabel(st)}</small>` : ''}<small class="zm-memo">${escapeHtml(st.comment)}</small>${withStock && st.par !== '' ? `<small class="zm-parv">기준 ${escapeHtml(st.par)}</small>` : ''}
+                            <i class="ti ti-note zm-memo-ic" aria-label="메모 있음"></i>${st.pin ? '<small class="zm-pinv" aria-label="즐겨찾기">★</small>' : ''}<span class="zm-item-name">${escapeHtml(name)}</span>${st.exp && expState(st) ? `<small class="zm-expv">${expLabel(st)}</small>` : ''}<small class="zm-memo">${escapeHtml(st.comment)}</small>${withStock && st.par !== '' ? `<small class="zm-parv">기준 ${escapeHtml(st.par)}</small>` : ''}
                             <i class="ti ti-plus zm-plus" aria-hidden="true"></i><span class="zm-x" title="빼기" aria-label="빼기">×</span>
                         </label>
                         <input type="text" class="cmt" placeholder="세부 위치 메모 (예: 맨 윗칸 왼쪽)" value="${escapeHtml(st.comment)}" enterkeyhint="done" oninput="const it = this.closest('.zm-item'); it.querySelector('.zm-memo').textContent = this.value; it.classList.toggle('has-memo', !!this.value.trim())">
-                        <div class="zm-extra"><button type="button" class="zm-pin${st.pin ? ' is-on' : ''}" aria-pressed="${st.pin ? 'true' : 'false'}" onclick="toggleZmPin(this)">★ 신입용 고정</button><label class="zm-exp">유통기한 <input type="date" class="exp" value="${escapeHtml(st.exp || '')}" aria-label="${escapeHtml(name)} 유통기한"></label></div>
+                        <div class="zm-extra"><button type="button" class="zm-pin${st.pin ? ' is-on' : ''}" aria-pressed="${st.pin ? 'true' : 'false'}" onclick="toggleZmPin(this)">${st.pin ? '★' : '☆'} 즐겨찾기</button><label class="zm-exp">유통기한 <input type="date" class="exp" value="${escapeHtml(st.exp || '')}" aria-label="${escapeHtml(name)} 유통기한"></label></div>
                         ${withStock ? `<label class="zm-par">기준 수량 <input type="number" class="par" inputmode="numeric" min="0" placeholder="–" value="${escapeHtml(st.par || '')}" aria-label="${escapeHtml(name)} 기준 수량"><span>모자라면 발주 목록에</span></label>` : ''}
                     </div>`;
         };
@@ -4546,9 +4548,9 @@
         else { item.classList.remove('memo-open'); document.getElementById('itemList').prepend(item); }
         updateZoneItemCount(); applyZoneItemFilter();
     }
-    // ★ 신입용 고정: 지도 쪽지에 맨 앞 ★로, 첫 화면 '고정' 칩으로 늘 보인다 (구역 창을 닫을 때 저장)
+    // ★ 즐겨찾기(신입용으로도): 지도 쪽지 맨 앞에, 첫 화면 '즐겨' 칩으로 늘 보인다 (구역 창을 닫을 때 저장)
     function toggleZmPin(btn) {
-        const on = btn.classList.toggle('is-on'); btn.setAttribute('aria-pressed', String(on));
+        const on = btn.classList.toggle('is-on'); btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? '★ 즐겨찾기' : '☆ 즐겨찾기';
         const main = btn.closest('.zm-item').querySelector('.zm-item-main'); let star = main.querySelector('.zm-pinv');
         if (on && !star) { star = document.createElement('small'); star.className = 'zm-pinv'; star.textContent = '★'; main.querySelector('.zm-item-name').before(star); }
         else if (!on && star) star.remove();
@@ -4858,7 +4860,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.9';
+    const APP_VERSION = '베타 2026.10.19.10';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5276,7 +5278,7 @@
         const chip = (q, extra = '') => `<button type="button" class="hero-chip" data-q="${escapeHtml(q)}" onclick="applySearchSuggestion(this)">${escapeHtml(q)}${extra}</button>`;
         let html = '';
         const pinned = [...new Set(photos.flatMap(d => d.zones.flatMap(z => z.items.filter(i => i.pin).map(i => i.name))))].slice(0, 8);
-        if (pinned.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">고정</span>${pinned.map(n => `<button type="button" class="hero-chip" data-q="${escapeHtml(n)}" onclick="applySearchSuggestion(this)">★ ${escapeHtml(n)}</button>`).join('')}</div>`; // 신입용 고정 물건 (사장님이 정해 둔 것)
+        if (pinned.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">즐겨</span>${pinned.map(n => `<button type="button" class="hero-chip" data-q="${escapeHtml(n)}" onclick="applySearchSuggestion(this)">★ ${escapeHtml(n)}</button>`).join('')}</div>`; // 신입용 고정 물건 (사장님이 정해 둔 것)
         if (history.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">최근</span>${history.map(h => chip(h)).join('')}</div>`;
         if (frequent.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">자주</span>${frequent.map(([n, c]) => chip(n, ` <small>${c}회</small>`)).join('')}</div>`;
         quick.innerHTML = html || '<p class="hero-quick-tip">물건 이름, 초성(ㅅㄹ), 말로도 찾을 수 있어요</p>';
