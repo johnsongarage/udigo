@@ -609,17 +609,10 @@
         .zone-note.narrow .it + .it, .zone-note.narrow .more { margin-top: 3px; padding-top: 3px; border-top: 1px dashed rgba(43,39,22,0.35); }
         .zone-note .more { color: #7a6a1e; font-weight: 500; }
         .zone-note.is-tiny { min-width: 2.8em; padding: 0 5px; font-size: 0.86em; line-height: 1.45; }
-        /* 부족 레이더: 기준보다 모자란 물건이 있는 칸의 쪽지는 주황 테두리가 숨 쉬듯 빛나고 "부족" 꼬리표 (투명도만 움직여 가볍게) */
-        .zone-note.is-low::before { content: ''; position: absolute; inset: -3px; border: 2px solid #ffa23a; border-radius: 4px 4px 9px 4px; box-shadow: 0 0 10px rgba(255,140,30,0.9); pointer-events: none; opacity: 0.85; animation: low-breath 1.8s ease-in-out 3; } /* 세 번만 숨 쉬고 가만히 (계속 깜빡이면 지도 보기가 피곤했다) */
-        .zone-note.is-low::after { content: '부족'; position: absolute; bottom: calc(100% + 1px); right: -2px; padding: 1px 5px; border-radius: 8px; background: #ff8a1c; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,140,30,0.8); pointer-events: none; }
-        .zone-note.is-exp::before { content: ''; position: absolute; inset: -3px; border: 2px solid #ff4d5e; border-radius: 4px 4px 9px 4px; box-shadow: 0 0 10px rgba(255,60,80,0.9); pointer-events: none; opacity: 0.85; animation: low-breath 1.8s ease-in-out 3; }
-        .zone-note.is-exp::after { content: '임박'; position: absolute; bottom: calc(100% + 1px); right: -2px; padding: 1px 5px; border-radius: 8px; background: #e8384a; color: #fff; font-size: 10px; font-weight: 800; line-height: 1.4; box-shadow: 0 0 8px rgba(255,60,80,0.8); pointer-events: none; white-space: nowrap; }
-        .zone-note.is-expired::after { content: '기한 지남'; }
-        /* 꼬리표는 쪽지 위 바깥에 (예전엔 첫 줄 글자를 가렸다). 어떤 물건인지는 그 줄 글자 색으로 */
+        /* 사진 위는 작아서 칸마다 신호 하나만: 칸 테두리 색(빨강 유통기한·주황 부족, 캔버스) + 그 물건 줄 글자색. 글자 꼬리표·쪽지 둘레 빛은 뺐다 (자세한 건 구역 목록·구역 창) */
         .zone-note .it.is-exp-line { color: #c81e33; font-weight: 800; }
         .zone-note .it.is-low-line { color: #b85a00; font-weight: 800; }
         @keyframes low-breath { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.25; } }
-        @media (prefers-reduced-motion: reduce) { .zone-note.is-low::before { animation: none; } }
         .zone-note.is-focus { outline: 2.5px solid #ff6ee0; outline-offset: 1px; box-shadow: 0 0 12px rgba(255, 90, 217, 0.85); } /* 찾은 칸 쪽지도 네온 */
         .note-layer.has-focus .zone-note:not(.is-focus), .note-layer.has-focus .is-empty:not(.is-focus) { opacity: 0.3; }
         .zone-note-slot.is-empty { transition: opacity 0.45s ease; }
@@ -3934,13 +3927,13 @@
             if (z.y * s < numOff) slot.style.paddingTop = (numOff + 1) + 'px'; if (z.x * s < numOff) slot.style.paddingLeft = (numOff + 1) + 'px';
             layer.appendChild(slot);
             if (!z.items.length) { slot.className = 'zone-note-slot is-empty' + (z === focus ? ' is-focus' : ''); slot.appendChild(num); return; } // 빈 칸: 번호만 (칸이 있다는 표시)
-            const names = [...z.items].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0)).map(i => (i.pin ? '★ ' : '') + i.name), n = names.length; // 신입용 고정은 맨 앞에 ★
+            const names = [...z.items].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0)).map(i => i.name), n = names.length; // 신입용 고정은 맨 앞에 (★는 사진이 작아 빼고, 첫 화면·구역 목록에만)
             const tiny = z.h * s - padY * 2 < lineH; // 칸이 쪽지 한 줄보다 낮으면 작은 쪽지를 칸 가운데에 걸쳐 붙인다
             slot.className = 'zone-note-slot' + (tiny ? ' is-tiny' : ''); if (tiny) slot.style.paddingTop = '';
             const note = document.createElement('div');
             const ex = zoneExp(z);
             note.className = 'zone-note' + (tiny ? ' is-tiny' : '') + (z === focus ? ' is-focus' : '') + (ex ? (ex === 'over' ? ' is-exp is-expired' : ' is-exp') : zoneLow(z) ? ' is-low' : '');
-            const flag = new Map(z.items.map(i => [(i.pin ? '★ ' : '') + i.name, expState(i) ? ' is-exp-line' : (zoneLow({ items: [i] }) ? ' is-low-line' : '')])); // 임박·지남은 빨강, 부족은 주황 글자
+            const flag = new Map(z.items.map(i => [i.name, expState(i) ? ' is-exp-line' : (zoneLow({ items: [i] }) ? ' is-low-line' : '')])); // 임박·지남은 빨강, 부족은 주황 글자
             const fill = (lines, more) => note.replaceChildren(num, ...lines.map((t, i) => { const l = document.createElement('div'); l.textContent = t; l.className = more && i === lines.length - 1 ? 'more' : 'it' + (flag.get(t) || ''); return l; }));
             slot.appendChild(note);
             // 한 줄짜리: 첫 물건 이름만 말줄임하고 "+N"은 끝까지 남긴다
@@ -4865,7 +4858,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.8';
+    const APP_VERSION = '베타 2026.10.19.9';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
