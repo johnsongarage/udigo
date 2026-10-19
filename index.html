@@ -548,6 +548,8 @@
         .photo-strip[hidden] { display: none; }
         .photo-thumb { flex: 0 0 auto; width: 104px; padding: 0; border: 2px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--text2); font: inherit; text-align: left; overflow: hidden; cursor: pointer; scroll-snap-align: start; }
         .photo-thumb img, .photo-thumb .photo-thumb-empty { display: block; width: 100%; height: 62px; object-fit: cover; background: var(--bg); }
+        .photo-thumb { position: relative; }
+        .photo-thumb.has-low::after { content: ''; position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; border-radius: 50%; background: #ff8a1c; border: 2px solid #fff; box-shadow: 0 0 8px rgba(255,140,30,0.9); } /* 부족한 칸이 있는 사진 */
         .photo-thumb span { display: block; padding: 5px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .photo-thumb[aria-selected="true"] { border-color: var(--accent-text); color: var(--text); box-shadow: var(--shadow-sm); }
         .photo-thumb[aria-selected="true"] span { color: var(--accent-text); }
@@ -3125,6 +3127,7 @@
         }) : []));
         centerCurrentThumb();
         applyPhotoVisibility();
+        if (typeof syncThumbLow === 'function') syncThumbLow();
     }
     function centerCurrentThumb() {
         const strip = document.getElementById('photoStrip'), cur = strip.querySelector('[aria-selected="true"]');
@@ -4805,7 +4808,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.1';
+    const APP_VERSION = '베타 2026.10.19.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6924,6 +6927,7 @@
         let em = fab.querySelector('.fab-badge'); if (!em) { em = document.createElement('em'); em.className = 'fab-badge'; fab.appendChild(em); }
         const n = stockOn() ? stockOrderLines().lines.length : 0;
         em.textContent = n; em.hidden = !n; fab.setAttribute('aria-label', n ? `재고 세기 · 모자란 물건 ${n}개` : '재고 세기');
+        syncThumbLow();
     }
     // 부족 레이더: 모자란 칸마다 주황 고리가 두 번 퍼진다 (사진 위에 잠깐 얹었다 걷는 그림)
     function stockRadar() {
@@ -6962,13 +6966,27 @@
     }
     // 발주 목록 → [지도에서 보기]: 창을 닫고 첫 부족 칸이 있는 사진으로 가서 레이더
     let lastLowShown = null, stockRadarDue = false;
+    // 사진이 여러 장이면 지금 보는 사진만 화면에 있다 → 부족한 칸이 있는 사진을 실제로 띄운 뒤 옮긴다
+    // (지금 보는 사진에 부족한 칸이 있으면 그 사진, 없으면 순서상 첫 사진. 나머지는 사진 줄의 주황 점으로)
     function showLowOnMap() {
         closeStock(true);
-        const d = stockPhotos().find(p => p.zones.some(zoneLow));
-        if (!d) return;
-        const box = d.zoomBox || d.canvas; if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const lows = stockPhotos().filter(p => p.zones.some(zoneLow));
+        if (!lows.length) return;
+        const d = lows.find(p => p.id == currentPhotoId) || lows[0];
+        showPhoto(d.id);
         lastLowShown = stockOrderLines().lines.length; stockRadarDue = false;
-        setTimeout(stockRadar, 550);
+        requestAnimationFrame(() => {
+            const box = d.zoomBox || d.canvas; if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(stockRadar, 550);
+        });
+        if (lows.length > 1) showToast(`부족한 칸이 있는 사진 ${lows.length}장 · 위 사진 줄의 주황 점 사진을 눌러 보세요`, 4000);
+    }
+    // 사진 줄 썸네일: 부족한 칸이 있는 사진에 주황 점
+    function syncThumbLow() {
+        document.querySelectorAll('#photoStrip .photo-thumb').forEach(b => {
+            const d = imageList.find(x => String(x.id) === b.dataset.id);
+            b.classList.toggle('has-low', !!d && d.zones.some(zoneLow));
+        });
     }
     function toggleStockMode() {
         const on = !stockOn();
