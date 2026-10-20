@@ -410,7 +410,7 @@
             background: rgba(26,26,24,0.35); z-index: 1050;
         }
         .hero-summary, .hero-quick, .hero-map-btn, .hero-map-row { display: none; }
-        @media (max-width: 600px) {
+        @media all { /* 예전엔 폰(600px 이하)에서만 → PC에서도 같은 홈 화면 (넓은 화면은 아래에서 가운데 한 줄로 모은다) */
             .search-bar {
                 transition: padding 0.35s cubic-bezier(0.4,0,0.2,1), border-radius 0.35s ease, box-shadow 0.35s ease;
             }
@@ -479,6 +479,19 @@
                 border-radius: var(--radius-pill); border: 1px solid var(--hero-chip-border); background: none;
                 font: inherit; font-size: 14px; font-weight: 600; color: var(--hero-text); cursor: pointer;
             }
+            /* 브리핑에서 누를 수 있는 것: [부족] 칸 · 유통기한 줄 → 지도에서 바로 그 칸 */
+            button.brief-tile { font: inherit; border: 0; cursor: pointer; }
+            .brief-tile.is-go span::after { content: ' ›'; font-weight: 800; }
+            button.brief-tile:active { transform: scale(0.97); }
+            button.brief-exp-line { padding: 4px 0; border: 0; background: none; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+        }
+        /* PC 홈 화면: 폰 화면처럼 가운데 한 줄(560px)로 */
+        @media (min-width: 601px) {
+            body.hero-search-active .search-bar { padding-left: max(20px, calc(50% - 280px)); padding-right: max(20px, calc(50% - 280px)); padding-top: 14vh; }
+            body.hero-search-active.hero-search-focused .search-bar { padding-top: 24px; }
+            body.hero-search-active .brief-tile b { font-size: 26px; }
+            body.hero-search-active .hero-map-row { margin-top: 28px; }
+            @media (hover: hover) { button.brief-tile:hover, .hero-chip:hover, .hero-map-btn:hover { filter: brightness(0.97); } }
         }
 
         .search-dropdown-item {
@@ -5106,7 +5119,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.7';
+    const APP_VERSION = '베타 2026.10.20.8';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5542,11 +5555,11 @@
         const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : low ? `발주할 물건 <b>${low}개</b>` : '재고를 아직 안 셌어요 · 아래 <b>[점검]</b>으로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
         const tiles = [['구역', zoneCount], ['물건', itemCount], ['이번 주 찾음', week]].concat(stock ? [['부족', low, low > 0]] : [['사진', photos.length]]);
         const expN = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.filter(it => expState(it)).length, 0), 0);
-        const foot2 = foot + (expN ? `<span class="brief-exp-line">⚠ 유통기한 임박·지남 <b>${expN}개</b></span>` : ''); // 따로 한 줄 (이어 붙이면 줄이 넘쳐 읽기 어려웠다)
+        const foot2 = foot + (expN ? `<button type="button" class="brief-exp-line" onclick="briefGo('exp')">⚠ 유통기한 임박·지남 <b>${expN}개</b> ›</button>` : ''); // 따로 한 줄 (이어 붙이면 줄이 넘쳐 읽기 어려웠다)
         const key = JSON.stringify([tiles, foot2]);
         if (el.dataset.key === key) return; // 그대로면 다시 올리지 않는다
         el.dataset.key = key;
-        el.innerHTML = `<div class="brief"><div class="brief-head"><span class="dot"></span>창고 브리핑</div><div class="brief-grid">${tiles.map(([t, n, hi]) => `<div class="brief-tile${hi ? ' is-low' : ''}"><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div><div class="brief-foot">${foot2}</div></div>`;
+        el.innerHTML = `<div class="brief"><div class="brief-head"><span class="dot"></span>창고 브리핑</div><div class="brief-grid">${tiles.map(([t, n, hi]) => hi ? `<button type="button" class="brief-tile is-low is-go" onclick="briefGo()" aria-label="부족한 ${n}개 지도에서 보기"><b data-to="${n}">0</b><span>${t}</span></button>` : `<div class="brief-tile"><b data-to="${n}">0</b><span>${t}</span></div>`).join('')}</div><div class="brief-foot">${foot2}</div></div>`;
         const nums = [...el.querySelectorAll('[data-to]')], t0 = performance.now(), DUR = 700;
         if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { nums.forEach(b => b.textContent = b.dataset.to); return; }
         (function up(now) {
@@ -5569,8 +5582,9 @@
         const days = new Set(Array.from({ length: 7 }, (_, i) => dayKey(new Date(Date.now() - i * 86400000))));
         return Object.entries(log).reduce((n, [d, c]) => n + (days.has(d) ? c : 0), 0);
     }
+    // 브리핑의 [부족]·유통기한 줄: 홈을 닫고 지도에서 그 칸을 바로 보여 준다
+    function briefGo(kind) { deactivateHeroSearch(); showLowOnMap(kind); }
     function activateHeroSearch(focused = false) {
-        if (!isMobileDevice()) return;
         renderHeroHome();
         if (focused && !document.body.classList.contains('hero-search-focused')) heroFocusedAt = performance.now();
         document.body.classList.add('hero-search-active');
@@ -5596,6 +5610,12 @@
         window.visualViewport.addEventListener('scroll', fitHeroDropdown);
     }
 
+    // PC: Esc로 홈 화면 닫기 (다른 창이 떠 있을 땐 그 창이 먼저)
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || !document.body.classList.contains('hero-search-active')) return;
+        if (document.getElementById('searchBox').value.trim()) return; // 검색 중이면 검색 쪽 Esc가 먼저
+        deactivateHeroSearch();
+    });
     function deactivateHeroSearch() {
         document.body.classList.remove('hero-search-active', 'hero-search-focused');
         // 검색 카드를 내리면 결과 창도 같이 닫는다 ([창고 지도 보기]는 검색 카드 안 버튼이라 바깥 누르기로 닫히지 않아 결과 창이 남았다)
@@ -5605,7 +5625,6 @@
 
     let resizeRenderTimer = null;
     window.addEventListener('resize', () => {
-        if (!isMobileDevice()) deactivateHeroSearch();
         clearTimeout(resizeRenderTimer); resizeRenderTimer = setTimeout(() => imageList.forEach(d => render(d)), 150);
     });
 
@@ -7289,10 +7308,15 @@
         const d = lows.find(p => p.id == currentPhotoId) || lows[0];
         showPhoto(d.id);
         if (!isExp) { lastLowShown = stockOrderLines().lines.length; stockRadarDue = false; }
-        requestAnimationFrame(() => {
-            const box = d.zoomBox || d.canvas; if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => { // 홈 화면을 닫은 직후엔 위쪽 배치가 한 번 더 바뀐다(PC) → 자리가 잡힌 뒤에 스크롤
+            const box = d.zoomBox || d.canvas;
+            if (box) { // 사진이 화면보다 크면(PC) 가운데 맞추기로는 윗줄 칸이 머리글 밑에 숨었다 → 사진 위 끝을 머리글 바로 아래로
+                const head = document.querySelector('.search-bar'), headH = head ? head.getBoundingClientRect().height : 0;
+                const room = window.innerHeight - headH, gap = Math.max(8, (room - box.offsetHeight) / 2);
+                window.scrollTo({ top: box.getBoundingClientRect().top + window.scrollY - headH - gap, behavior: 'smooth' });
+            }
             setTimeout(() => stockRadar(kind), 550);
-        });
+        }, 120);
         if (lows.length > 1) showToast(`${isExp ? '유통기한 임박·지남 칸이' : '부족한 칸이'} 있는 사진 ${lows.length}장 · 위 사진 줄의 ${isExp ? '' : '주황 점 '}사진을 눌러 보세요`, 4000);
     }
     // 사진 줄 썸네일: 부족한 칸이 있는 사진에 주황 점
