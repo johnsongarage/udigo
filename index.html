@@ -1521,6 +1521,32 @@
         .zm-info b.zm-info-exp { color: #d0283a; }
         .zm-to-check { flex: none; padding: 6px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); color: var(--accent); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
         .stock-row.is-target { background: var(--accent-soft); transition: background 0.4s; }
+        /* 물건 카드: 구역 창·점검 어디서 물건을 눌러도 같은 카드 하나 (메모·즐겨찾기·수량·기준·유통기한을 한곳에서) */
+        #itemCardBackdrop { display: none; position: fixed; inset: 0; z-index: 10040; background: rgba(26,26,24,0.45); }
+        #itemCard { display: none; position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 10050; width: calc(100% - 24px); max-width: 420px; max-height: calc(100dvh - 24px); overflow-y: auto; box-sizing: border-box; padding: 16px; border-radius: var(--radius-lg); background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-lg); flex-direction: column; gap: 12px; }
+        #itemCard.is-open, #itemCardBackdrop.is-open { display: flex; }
+        #itemCardBackdrop.is-open { display: block; }
+        .ic-head { display: flex; align-items: flex-start; gap: 8px; }
+        .ic-title { flex: 1; min-width: 0; }
+        .ic-title b { display: block; font-size: 18px; color: var(--text); overflow-wrap: anywhere; word-break: keep-all; }
+        .ic-title small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text3); }
+        .ic-x { flex: none; min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 18px; background: var(--bg); color: var(--text2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .ic-sec { display: flex; flex-direction: column; gap: 6px; }
+        .ic-sec > span { font-size: 12px; font-weight: 700; color: var(--text3); }
+        .ic-sec input[type=text], .ic-sec input[type=date] { height: 42px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; box-sizing: border-box; width: 100%; }
+        .ic-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .ic-line .stock-ctl button { width: 42px; height: 42px; }
+        .ic-line .stock-ctl input { width: 58px; height: 42px; font-size: 17px; }
+        .ic-line .stock-par input { width: 54px; height: 42px; font-size: 15px; }
+        .ic-exp-line input[type=date] { flex: 1; min-width: 0; width: auto; }
+        .ic-exp-tag { flex: none; padding: 3px 8px; border-radius: 9px; font-size: 12px; font-weight: 800; background: var(--bg); color: var(--text3); }
+        .ic-exp-tag:empty { display: none; }
+        .ic-exp-tag.is-soon { background: #ffe3e6; color: #d0283a; }
+        .ic-exp-tag.is-over { background: #d0283a; color: #fff; }
+        .ic-clear { flex: none; padding: 6px 4px; border: 0; background: none; color: var(--text3); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+        .ic-low { font-size: 12px; font-weight: 700; color: var(--danger); }
+        .ic-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .stock-name { cursor: pointer; }
         .zm-f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text3); }
         .zm-f input { height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font: inherit; font-size: 13.5px; box-sizing: border-box; }
         .zm-f-par input { width: 70px; text-align: center; }
@@ -2109,7 +2135,7 @@
         </div>
         <!-- 담긴 물건(눌러서 메모, ×로 빼기) / 아래: 자주 쓰는 물건 후보(눌러서 담기, 처음엔 8개만) -->
         <div class="zm-section-head">
-            <span>이 구역에 있는 것 <small class="zm-head-hint">누르면 편집</small></span>
+            <span>이 구역에 있는 것 <small class="zm-head-hint">누르면 물건 카드</small></span>
             <span id="zoneItemCount" class="zm-count"></span>
         </div>
         <div id="zmPicked" class="zm-chips is-picked" data-empty="아직 없어요 · 위에서 찾거나 아래에서 눌러 담아요"></div>
@@ -2161,6 +2187,23 @@
     </div>
     <div id="stockList" class="stock-list"></div>
     <div class="print-actions" id="stockActions"></div>
+</div>
+<div id="itemCardBackdrop" onclick="closeItemCard()"></div>
+<div id="itemCard" role="dialog" aria-modal="true" aria-labelledby="icName">
+    <div class="ic-head">
+        <div class="ic-title"><b id="icName"></b><small id="icWhere"></small></div>
+        <button type="button" class="ic-x" onclick="closeItemCard()" aria-label="닫기">닫기 ✕</button>
+    </div>
+    <label class="ic-sec"><span>메모 (어디쯤 있는지)</span><input type="text" id="icMemo" placeholder="예: 맨 윗칸 왼쪽" enterkeyhint="done" autocomplete="off"></label>
+    <div class="ic-sec" id="icStock"><span>재고 <em class="ic-low" id="icLow"></em></span>
+        <div class="ic-line"><span class="stock-ctl"><button type="button" data-ic="dec" aria-label="하나 빼기">−</button><input type="number" id="icQty" inputmode="numeric" min="0" placeholder="?" aria-label="지금 수량"><button type="button" data-ic="inc" aria-label="하나 더하기">+</button></span>
+        <label class="stock-par">기준<input type="number" id="icPar" inputmode="numeric" min="0" placeholder="–" aria-label="기준 수량"></label></div>
+    </div>
+    <div class="ic-sec"><span>유통기한</span>
+        <div class="ic-line ic-exp-line"><input type="date" id="icExp" aria-label="유통기한"><b class="ic-exp-tag" id="icExpTag"></b><button type="button" class="ic-clear" id="icExpClear">지우기</button></div>
+    </div>
+    <div class="ic-foot"><button type="button" class="zm-pin" id="icPin" aria-pressed="false">☆ 즐겨찾기</button><button type="button" class="zm-remove" id="icRemove">이 구역에서 빼기</button></div>
+    <button type="button" class="btn-base btn-primary" onclick="closeItemCard()"><i class="ti ti-check"></i> 완료</button>
 </div>
 <div id="printBackdrop" onclick="closePrintPreview()"></div>
 <div id="printModal" role="dialog" aria-modal="true" aria-labelledby="printTitle">
@@ -3582,13 +3625,11 @@
         const z = activeZone; if (!z) return;
         const state = new Map();
         if (preserve) {
-            document.querySelectorAll('#modal .zm-body .cb').forEach(cb => { const row = cb.closest('.zm-item'), parEl = row.querySelector('.par'), expEl = row.querySelector('.exp'); state.set(cb.value, { checked: cb.checked, comment: cb.parentElement.nextElementSibling.value, par: parEl ? parEl.value : '', pin: !!row.querySelector('.zm-pin.is-on'), exp: expEl ? expEl.value : '' }); });
+            document.querySelectorAll('#modal .zm-body .cb').forEach(cb => { const row = cb.closest('.zm-item'), parEl = row.querySelector('.par'), expEl = row.querySelector('.exp'); state.set(cb.value, { checked: cb.checked, comment: cb.parentElement.nextElementSibling.value, par: parEl ? parEl.value : '', pin: row.dataset.pin === '1', exp: expEl ? expEl.value : '', extra: row.dataset.extra || '' }); });
         } else {
             z.items.forEach(it => state.set(it.name, { checked: true, comment: it.comment || '', par: typeof it.par === 'number' ? String(it.par) : '', pin: !!it.pin, exp: it.exp || '' }));
         }
         const withStock = stockOn();
-        const itemOf = (n) => z.items.find(i => i.name === n) || {};
-        const lowNames = new Set(withStock ? z.items.filter(it => zoneLow({ items: [it] })).map(it => it.name) : []); // 칩의 주황 점
         // 품목 목록에 없는 물건이 구역에 들어 있어도 저장할 때 사라지지 않도록 함께 보여준다.
         // 담지 않은 후보는 지금 품목 목록(baseItems)만 — 업종을 고른 뒤 예전 기본 품목이 이 구역에만 남아 보이다가 다음 구역에선 사라져 보였다
         const names = [...new Set([...z.items.map(it => it.name), ...baseItems, ...[...state.keys()].filter(n => state.get(n).checked)])];
@@ -3598,16 +3639,15 @@
         // 담긴 물건은 위 칩 묶음(zmPicked), 나머지 후보는 아래(itemList). 체크박스·메모 칸 구조는 그대로라 저장·가져오기 코드는 그대로 쓴다
         const chip = (name) => {
             const st = state.get(name) || { checked: false, comment: '', par: '', pin: false, exp: '' };
-            return `<div class="zm-item ${st.checked ? 'is-checked' : ''} ${st.comment ? 'has-memo' : ''}">
+            const cur = zmItemNow(z, name, st.extra);
+            return `<div class="zm-item ${st.checked ? 'is-checked' : ''} ${st.comment ? 'has-memo' : ''}" data-pin="${st.pin ? '1' : ''}"${st.extra ? ` data-extra="${escapeHtml(st.extra)}"` : ''}>
                         <label class="zm-item-main" onclick="zmChipClick(event, this)">
                             <input type="checkbox" class="cb" value="${escapeHtml(name)}" ${st.checked ? 'checked' : ''} onchange="toggleCommentField(this)">
                             <span class="zm-check" aria-hidden="true"></span>
-                            ${st.pin ? '<small class="zm-pinv" aria-label="즐겨찾기">★</small>' : ''}<span class="zm-item-name">${escapeHtml(name)}</span><span class="zm-marks">${st.exp && expState(st) ? `<i class="zm-mk is-exp" title="유통기한 ${expLabel(st)}"></i>` : ''}${lowNames.has(name) ? '<i class="zm-mk is-low" title="부족"></i>' : ''}<i class="zm-mk is-memo" aria-label="메모 있음">✎</i></span><small class="zm-memo">${escapeHtml(st.comment)}</small>
+                            ${st.pin ? '<small class="zm-pinv" aria-label="즐겨찾기">★</small>' : ''}<span class="zm-item-name">${escapeHtml(name)}</span><span class="zm-marks">${zmMarks(cur, withStock)}</span><small class="zm-memo">${escapeHtml(st.comment)}</small>
                             <i class="ti ti-plus zm-plus" aria-hidden="true"></i><span class="zm-x" title="빼기" aria-label="빼기">×</span>
                         </label>
                         <input type="text" class="cmt" placeholder="세부 위치 메모 (예: 맨 윗칸 왼쪽)" value="${escapeHtml(st.comment)}" enterkeyhint="done" oninput="const it = this.closest('.zm-item'); it.querySelector('.zm-memo').textContent = this.value; it.classList.toggle('has-memo', !!this.value.trim())">
-                        <div class="zm-extra"><span class="zm-info">${zmInfo(name, st, itemOf(name), withStock)}</span>${z.items.some(i => i.name === name) ? `<button type="button" class="zm-to-check" onclick="openCheckFor(this)">점검에서 고치기</button>` : ''}</div>
-                        <div class="zm-card-foot"><button type="button" class="zm-pin${st.pin ? ' is-on' : ''}" aria-pressed="${st.pin ? 'true' : 'false'}" onclick="toggleZmPin(this)">${st.pin ? '★' : '☆'} 즐겨찾기</button><button type="button" class="zm-remove" onclick="zmRemoveItem(this)">이 구역에서 빼기</button></div>
                     </div>`;
         };
         document.getElementById('zmPicked').innerHTML = names.filter(n => (state.get(n) || {}).checked).map(chip).join('');
@@ -4582,41 +4622,128 @@
         else { item.classList.remove('memo-open'); document.getElementById('itemList').prepend(item); }
         updateZoneItemCount(); applyZoneItemFilter();
     }
-    // ★ 즐겨찾기(신입용으로도): 지도 쪽지 맨 앞에, 첫 화면 '즐겨' 칩으로 늘 보인다 (구역 창을 닫을 때 저장)
-    // 구역 창은 "어디에·무엇"(메모·즐겨찾기)만 고치고, 수량·기준·유통기한은 보기만 → [점검]에서 한 곳에서 고친다
-    function zmInfo(name, st, it, withStock) {
-        const parts = [];
-        if (withStock && isNum(it.qty)) parts.push(`재고 <b>${it.qty}개</b>${isNum(it.par) ? ` / 기준 ${it.par}` : ''}`);
-        else if (withStock && isNum(it.par)) parts.push(`기준 ${it.par}`);
-        if (it.exp) { const s2 = expState(it); parts.push(`유통기한 <b class="${s2 ? 'zm-info-exp' : ''}">${s2 ? expLabel(it) + ' · ' : ''}${mmdd(it.exp)}</b>`); }
-        return parts.length ? parts.join(' · ') : (withStock ? '수량·유통기한은 점검에서 적어요' : '유통기한은 점검에서 적어요');
+    // 구역 창의 물건 하나가 "지금" 가진 값: 저장된 값 위에 물건 카드에서 고친 값(아직 저장 전, data-extra)을 얹는다
+    function zmItemNow(z, name, extra) {
+        const it = { ...(z.items.find(i => i.name === name) || {}), name };
+        if (extra) { try { const x = JSON.parse(extra); ['qty', 'par', 'exp'].forEach(k => { if (x[k] === null || x[k] === '') delete it[k]; else if (k in x) it[k] = x[k]; }); } catch (e) {} }
+        return it;
     }
-    function openCheckFor(btn) {
-        const name = btn.closest('.zm-item').querySelector('.cb').value, d = activeData, z = activeZone;
-        const pi = stockPhotos().indexOf(d), zi = d ? d.zones.indexOf(z) : -1;
-        commitZoneModal(false); closeModal();
-        openStock('count');
-        const ii = zi >= 0 ? d.zones[zi].items.findIndex(i => i.name === name) : -1;
-        const row = document.querySelector(`#stockList .stock-row[data-at="${pi}.${zi}.${ii}"]`);
-        if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('is-target'); setTimeout(() => row.classList.remove('is-target'), 1800); }
+    // 칩 옆 작은 점: 빨강 = 유통기한 임박·지남, 주황 = 기준보다 모자람, ✎ = 메모 있음
+    function zmMarks(it, withStock) {
+        return `${it.exp && expState(it) ? `<i class="zm-mk is-exp" title="유통기한 ${expLabel(it)}"></i>` : ''}${withStock && zoneLow({ items: [it] }) ? '<i class="zm-mk is-low" title="부족"></i>' : ''}<i class="zm-mk is-memo" aria-label="메모 있음">✎</i>`;
     }
-    function zmRemoveItem(btn) { const cb = btn.closest('.zm-item').querySelector('.cb'); cb.checked = false; toggleCommentField(cb); }
-    function toggleZmPin(btn) {
-        const on = btn.classList.toggle('is-on'); btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? '★ 즐겨찾기' : '☆ 즐겨찾기';
-        const main = btn.closest('.zm-item').querySelector('.zm-item-main'); let star = main.querySelector('.zm-pinv');
-        if (on && !star) { star = document.createElement('small'); star.className = 'zm-pinv'; star.textContent = '★'; main.querySelector('.zm-item-name').before(star); }
+    function zmRemoveItem(row) { const cb = row.querySelector('.cb'); cb.checked = false; toggleCommentField(cb); }
+    function setZmPin(row, on) {
+        row.dataset.pin = on ? '1' : '';
+        const main = row.querySelector('.zm-item-main'); let star = main.querySelector('.zm-pinv');
+        if (on && !star) { star = document.createElement('small'); star.className = 'zm-pinv'; star.textContent = '★'; star.setAttribute('aria-label', '즐겨찾기'); main.querySelector('.zm-item-name').before(star); }
         else if (!on && star) star.remove();
     }
-    // 담긴 칩: 몸통을 누르면 메모 칸 열기/닫기, ×를 누르면 빼기. 후보 칩: 누르면 담기(기본 동작)
+    // 담긴 칩: 몸통을 누르면 물건 카드, ×를 누르면 빼기. 후보 칩: 누르면 담기(기본 동작)
     function zmChipClick(e, label) {
         const item = label.closest('.zm-item');
         // 체크박스 자신에게 전달된 클릭(라벨이 대신 보내는 것)은 건드리지 않는다 — 막으면 ×로 빼기가 되돌려졌다
         if (e.target.matches('input') || !item.classList.contains('is-checked') || e.target.closest('.zm-x')) return;
         e.preventDefault();
-        if (!item.classList.contains('memo-open')) document.querySelectorAll('#zmPicked .zm-item.memo-open').forEach(o => o.classList.remove('memo-open')); // 한 번에 하나만 펼친다
-        const open = item.classList.toggle('memo-open');
-        if (open) { const c = item.querySelector('.cmt'); setTimeout(() => c.focus(), 0); }
+        openZoneItemCard(item);
     }
+    // 구역 창에서 연 물건 카드: 고친 값은 칩(메모 칸·data-pin·data-extra)에 담아 두고, 구역 창을 닫을 때 한꺼번에 저장한다
+    function openZoneItemCard(row) {
+        const z = activeZone, d = activeData; if (!z) return;
+        const name = row.querySelector('.cb').value, cmt = row.querySelector('.cmt');
+        const it = zmItemNow(z, name, row.dataset.extra);
+        const zi = d ? d.zones.indexOf(z) : -1, pi = stockPhotos().indexOf(d);
+        const code = zi >= 0 ? stockCode(Math.max(0, pi), zi, stockPhotos().length > 1) : '';
+        openItemCard({
+            draft: { name, comment: cmt.value, pin: row.dataset.pin === '1', qty: it.qty, par: it.par, exp: it.exp || '' },
+            where: [code && `${code}번`, document.getElementById('zoneNameInput').value.trim() || z.name].filter(Boolean).join(' · '),
+            onRemove: () => zmRemoveItem(row),
+            apply: (dr) => {
+                if (cmt.value !== dr.comment) { cmt.value = dr.comment; cmt.dispatchEvent(new Event('input')); }
+                setZmPin(row, dr.pin);
+                const x = { qty: isNum(dr.qty) ? dr.qty : null, par: isNum(dr.par) ? dr.par : null, exp: dr.exp || null };
+                row.dataset.extra = JSON.stringify(x);
+                row.querySelector('.zm-marks').innerHTML = zmMarks(zmItemNow(z, name, row.dataset.extra), stockOn());
+            }
+        });
+    }
+    // 점검(세기)에서 연 물건 카드: 그 물건에 바로 적는다
+    function openStockItemCard(row) {
+        const it = stockItemAt(row); if (!it) return;
+        const [pi, zi] = row.dataset.at.split('.').map(Number), photos = stockPhotos(), z = photos[pi].zones[zi];
+        openItemCard({
+            draft: { name: it.name, comment: it.comment || '', pin: !!it.pin, qty: it.qty, par: it.par, exp: it.exp || '' },
+            where: `${stockCode(pi, zi, photos.length > 1)}번 · ${z.name || '이름 없는 구역'}`,
+            apply: (dr) => {
+                const before = JSON.stringify(it);
+                it.comment = dr.comment;
+                if (dr.pin) it.pin = true; else delete it.pin;
+                ['qty', 'par'].forEach(k => { if (isNum(dr[k])) it[k] = dr[k]; else delete it[k]; });
+                if (dr.exp) it.exp = dr.exp; else delete it.exp;
+                if (JSON.stringify(it) === before) return;
+                queueStockSave();
+                const list = document.getElementById('stockList'), top = list.scrollTop;
+                renderStock(); list.scrollTop = top;
+            }
+        });
+    }
+    // 물건 카드 (공용): ctx = { draft, where, apply(draft), onRemove? } — 닫으면(완료·닫기·바깥·Esc) 바로 반영
+    let itemCardCtx = null;
+    function openItemCard(ctx) {
+        itemCardCtx = ctx; const dr = ctx.draft, S = stockOn();
+        document.getElementById('icName').textContent = dr.name;
+        document.getElementById('icWhere').textContent = ctx.where ? `${ctx.where}에 있어요` : '';
+        document.getElementById('icMemo').value = dr.comment || '';
+        document.getElementById('icStock').hidden = !S;
+        document.getElementById('icQty').value = isNum(dr.qty) ? dr.qty : '';
+        document.getElementById('icPar').value = isNum(dr.par) ? dr.par : '';
+        document.getElementById('icExp').value = dr.exp || '';
+        document.getElementById('icRemove').hidden = !ctx.onRemove;
+        syncItemCardPin(!!dr.pin); syncItemCard();
+        document.getElementById('itemCardBackdrop').classList.add('is-open');
+        document.getElementById('itemCard').classList.add('is-open');
+    }
+    function readItemCard() {
+        const num = (id) => { const v = document.getElementById(id).value.trim(); const n = v === '' ? NaN : Math.max(0, Math.floor(Number(v))); return isFinite(n) ? n : null; };
+        const exp = document.getElementById('icExp').value;
+        return { ...itemCardCtx.draft, comment: document.getElementById('icMemo').value.trim(), pin: document.getElementById('icPin').classList.contains('is-on'), qty: num('icQty'), par: num('icPar'), exp: /^\d{4}-\d{2}-\d{2}$/.test(exp) ? exp : '' };
+    }
+    function syncItemCardPin(on) { const b = document.getElementById('icPin'); b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', String(on)); b.textContent = on ? '★ 즐겨찾기' : '☆ 즐겨찾기'; }
+    function syncItemCard() { // D-day 표·부족 글씨를 고치는 대로 바로
+        if (!itemCardCtx) return;
+        const dr = readItemCard(), tag = document.getElementById('icExpTag'), st = dr.exp ? expState(dr) : null;
+        tag.textContent = dr.exp ? (st ? expLabel(dr) : `D-${expDays(dr)}`) : ''; tag.className = 'ic-exp-tag' + (st ? ' is-' + st : '');
+        document.getElementById('icExpClear').hidden = !dr.exp;
+        document.getElementById('icLow').textContent = isNum(dr.qty) && isNum(dr.par) && dr.qty < dr.par ? `· ${dr.par - dr.qty}개 모자라요` : '';
+    }
+    function closeItemCard(discard) {
+        if (!itemCardCtx) return;
+        const ctx = itemCardCtx, dr = readItemCard(); itemCardCtx = null;
+        document.activeElement && document.getElementById('itemCard').contains(document.activeElement) && document.activeElement.blur();
+        document.getElementById('itemCardBackdrop').classList.remove('is-open');
+        document.getElementById('itemCard').classList.remove('is-open');
+        if (!discard) ctx.apply(dr);
+    }
+    (() => {
+        const card = document.getElementById('itemCard'), qty = document.getElementById('icQty');
+        card.addEventListener('input', syncItemCard); card.addEventListener('change', syncItemCard);
+        card.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-ic]'); if (!b) return;
+            const cur = qty.value.trim() === '' ? 0 : Math.max(0, Math.floor(Number(qty.value)) || 0);
+            qty.value = b.dataset.ic === 'inc' ? cur + 1 : Math.max(0, cur - 1); syncItemCard();
+        });
+        document.getElementById('icPin').onclick = () => syncItemCardPin(!document.getElementById('icPin').classList.contains('is-on'));
+        document.getElementById('icExpClear').onclick = () => { document.getElementById('icExp').value = ''; syncItemCard(); };
+        document.getElementById('icRemove').onclick = () => { const ctx = itemCardCtx; closeItemCard(true); if (ctx && ctx.onRemove) ctx.onRemove(); };
+        document.getElementById('icMemo').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) e.target.blur(); });
+        // Esc는 카드만 닫는다 (뒤의 구역 창·점검 창까지 같이 닫히지 않게)
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && itemCardCtx) { e.stopImmediatePropagation(); closeItemCard(); } }, true);
+        // 점검(세기): 물건 이름을 누르면 물건 카드 (날짜 칩은 그대로 달력)
+        document.getElementById('stockList').addEventListener('click', (e) => {
+            const n = e.target.closest('.stock-name'); if (!n || e.target.closest('.stock-exp')) return;
+            openStockItemCard(n.closest('.stock-row'));
+        });
+    })();
     // 구역 창은 닫을 때 자동 저장된다 ([완료]·×·뒤로 가기 모두). 바뀐 게 없으면 아무것도 하지 않는다.
     // [완료]는 "확인했다"는 뜻이라 바뀐 게 없어도 확인 날짜를 새로 적는다
     function commitZoneModal(confirmed) {
@@ -4628,10 +4755,11 @@
             const parEl = cb.closest('.zm-item').querySelector('.par'); // 재고를 켠 사람만 있는 칸: 비우면 기준을 지운다
             if (parEl) { const v = parEl.value.trim() === '' ? NaN : Math.max(0, Math.floor(Number(parEl.value))); if (isFinite(v)) it.par = v; else delete it.par; }
             const row = cb.closest('.zm-item');
-            if (row.querySelector('.zm-pin.is-on')) it.pin = true; else delete it.pin; // 유통기한·기준은 [점검]에서 고친다 (여기선 그대로 둔다)
+            if (row.dataset.pin === '1') it.pin = true; else delete it.pin;
+            if (row.dataset.extra) { const n = zmItemNow({ items: [it] }, it.name, row.dataset.extra); ['qty', 'par', 'exp'].forEach(k => { if (k in n) it[k] = n[k]; else delete it[k]; }); } // 물건 카드에서 고친 수량·기준·유통기한
             return it;
         });
-        const pick = (i) => ({ name: i.name, comment: i.comment || "", par: typeof i.par === 'number' ? i.par : null, pin: !!i.pin, exp: i.exp || '' });
+        const pick = (i) => ({ name: i.name, comment: i.comment || "", qty: typeof i.qty === 'number' ? i.qty : null, par: typeof i.par === 'number' ? i.par : null, pin: !!i.pin, exp: i.exp || '' });
         const changed = name !== activeZone.name || JSON.stringify(items.map(pick)) !== JSON.stringify(activeZone.items.map(pick));
         if (!changed && !confirmed) return;
         if (changed) saveHistory();
@@ -4912,7 +5040,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.19.13';
+    const APP_VERSION = '베타 2026.10.20.1';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
