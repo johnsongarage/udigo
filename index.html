@@ -4752,7 +4752,14 @@
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && itemCardCtx) { e.stopImmediatePropagation(); closeItemCard(); } }, true);
         // 점검(세기): 물건 이름을 누르면 물건 카드
         document.getElementById('stockList').addEventListener('click', (e) => {
-            const n = e.target.closest('.stock-name'); if (!n || e.target.closest('.stock-exp')) return;
+            // 날짜 버튼: 투명한 날짜 칸을 눌러도 달력이 안 뜨는 폰이 있어서, 누르면 직접 달력을 연다 (showPicker 없는 폰은 focus로)
+            const chip = e.target.closest('.stock-exp');
+            if (chip) {
+                const input = chip.querySelector('input[type=date]'); e.preventDefault();
+                try { if (input.showPicker) { input.showPicker(); return; } } catch (err) {}
+                input.focus(); return;
+            }
+            const n = e.target.closest('.stock-name'); if (!n) return;
             openStockItemCard(n.closest('.stock-row'));
         });
     })();
@@ -5052,7 +5059,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.2';
+    const APP_VERSION = '베타 2026.10.20.3';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
