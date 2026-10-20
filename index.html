@@ -5064,7 +5064,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.4';
+    const APP_VERSION = '베타 2026.10.20.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -7347,7 +7347,7 @@
         document.getElementById('stockSub').textContent = stockTab === 'count'
             ? (!S || F === 'exp' ? '물건마다 날짜를 눌러 유통기한을 적어요. 이름을 누르면 물건 카드.'
                 : F === 'par' ? '기준 = 이만큼은 있어야 하는 수. 처음 한 번만 적어 두면 돼요.'
-                : `선반 순서대로 세요. 이름을 누르면 물건 카드.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`)
+                : `이름을 누르면 물건 카드.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`)
             : stockTab === 'exp' ? `날짜가 가까운 순이에요. ${EXP_SOON_DAYS}일 안이면 빨강.`
             : '기준보다 모자란 것만 모았어요. 보내기로 카톡·문자에 붙여 넣으세요.';
         const actions = document.getElementById('stockActions');
