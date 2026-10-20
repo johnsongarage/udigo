@@ -2901,11 +2901,9 @@
         ctx.restore();
     }
     // 사진의 테두리(밝기가 확 바뀌는 곳)만 뽑아 네온 색 투명 그림으로 (AI 아님, 폰 안에서 계산 · 작게 줄여서 빠르게)
-    function neonEdgeImage(img) {
-        const sw = Math.min(420, img.width), sh = Math.max(1, Math.round(img.height * sw / img.width));
-        const c = document.createElement('canvas'); c.width = sw; c.height = sh;
-        const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, sw, sh);
-        const px = x.getImageData(0, 0, sw, sh).data, n = sw * sh, g = new Float32Array(n), b = new Float32Array(n), m = new Float32Array(n);
+    // 계산만 하는 부분(화면을 안 건드림): 워커에서도 그대로 돌린다 → 결과는 RGBA 바이트
+    function neonEdgePixels(px, sw, sh, rgb) {
+        const n = sw * sh, g = new Float32Array(n), b = new Float32Array(n), m = new Float32Array(n);
         for (let i = 0; i < n; i++) g[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
         for (let y = 1; y < sh - 1; y++) for (let xx = 1; xx < sw - 1; xx++) { // 잔무늬를 줄이려고 살짝 흐리게
             const i = y * sw + xx; b[i] = (g[i] * 4 + g[i - 1] + g[i + 1] + g[i - sw] + g[i + sw]) / 8;
@@ -2916,30 +2914,74 @@
             const gy = -b[i - sw - 1] - 2 * b[i - sw] - b[i - sw + 1] + b[i + sw - 1] + 2 * b[i + sw] + b[i + sw + 1];
             m[i] = Math.hypot(gx, gy);
         }
-        const sorted = m.slice().sort(), t = Math.max(30, sorted[Math.floor(n * 0.9)]); // 가장 센 10%만 선으로
-        const out = x.createImageData(sw, sh), o = out.data, [r, gg, bb] = NEON_EDGE_RGB;
+        // 가장 센 10%만 선으로: 기준값은 정렬 대신 눈금(히스토그램)으로 구한다 (정렬이 폰에서 사진마다 0.1초 넘게 걸렸다)
+        const hist = new Uint32Array(2048); for (let i = 0; i < n; i++) hist[Math.min(2047, m[i] | 0)]++;
+        let acc = 0, p90 = 0; const want = Math.floor(n * 0.9); while (p90 < 2047 && acc + hist[p90] <= want) acc += hist[p90++];
+        const t = Math.max(30, p90), o = new Uint8ClampedArray(n * 4), [r, gg, bb] = rgb;
         for (let i = 0; i < n; i++) if (m[i] > t) { o[i * 4] = r; o[i * 4 + 1] = gg; o[i * 4 + 2] = bb; o[i * 4 + 3] = Math.min(255, 110 + (m[i] - t) / t * 260); }
-        x.putImageData(out, 0, 0); return c;
+        return o;
+    }
+    function neonEdgeSource(img) { // 작게 줄인 사진의 픽셀
+        const sw = Math.min(420, img.width), sh = Math.max(1, Math.round(img.height * sw / img.width));
+        const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+        const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, sw, sh);
+        return { c, x, sw, sh, px: x.getImageData(0, 0, sw, sh).data };
+    }
+    function neonEdgeImage(img) {
+        const { c, x, sw, sh, px } = neonEdgeSource(img);
+        x.putImageData(new ImageData(neonEdgePixels(px, sw, sh, NEON_EDGE_RGB), sw, sh), 0, 0); return c;
     }
     // 검색 연출용: 엣지에 빛 번짐까지 미리 구워 둔 그림 (매 프레임 사진 전체에 shadowBlur를 걸면 폰에서 끊겼다). 사진이 바뀌면 다시
+    function bakeNeonEdges(data, e) {
+        // 엣지 그림(작게 줄인 크기) 그대로의 크기로 굽는다: 사진 크기로 구우면 번짐 계산이 4배라 폰에서 사진마다 멈칫했다 (그릴 땐 어차피 늘려 그림)
+        const W = e.width, H = e.height, k = displayScale(data.canvas) * W / data.canvas.width;
+        const g = document.createElement('canvas'); g.width = W; g.height = H;
+        const gx = g.getContext('2d'); gx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; gx.shadowBlur = Math.max(1.5, 5 * k); gx.drawImage(e, 0, 0);
+        data._neonEdges = e; data._neonEdgesGlow = g; data._neonEdgesSrc = data.img.src;
+    }
     function ensureNeonEdges(data) {
         if (!data || !data.img || !data.img.width || !data.canvas) return null;
         if (data._neonEdges && data._neonEdgesSrc === data.img.src) return data._neonEdges;
         data._neonEdges = null; data._neonEdgesGlow = null; data._neonEdgesSrc = data.img.src;
-        try {
-            const e = neonEdgeImage(data.img), W = data.canvas.width, H = data.canvas.height, k = displayScale(data.canvas);
-            const g = document.createElement('canvas'); g.width = W; g.height = H;
-            const gx = g.getContext('2d'); gx.shadowColor = `rgba(${NEON_EDGE_RGB},0.9)`; gx.shadowBlur = 5 * k; gx.drawImage(e, 0, 0, W, H);
-            data._neonEdges = e; data._neonEdgesGlow = g;
-        } catch (err) {}
+        try { bakeNeonEdges(data, neonEdgeImage(data.img)); } catch (err) {}
         return data._neonEdges;
     }
+    // 미리 계산은 워커(화면과 따로 도는 일꾼)에서: 첫 계산이 폰에서 0.5초 넘게 화면을 멈췄다. 워커를 못 쓰면 화면에서 계산
+    let neonWorker;
+    function getNeonWorker() {
+        if (neonWorker !== undefined) return neonWorker;
+        try {
+            const src = `const neonEdgePixels = ${neonEdgePixels.toString()};\nself.onmessage = (e) => { const { id, px, sw, sh, rgb } = e.data; const o = neonEdgePixels(px, sw, sh, rgb); self.postMessage({ id, o }, [o.buffer]); };`;
+            neonWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        } catch (e) { neonWorker = null; }
+        return neonWorker;
+    }
+    function warmNeonEdgesAsync(data, done) {
+        const w = getNeonWorker();
+        if (!w || !data.img || !data.img.width || !data.canvas) { ensureNeonEdges(data); done(); return; }
+        if (data._neonEdges && data._neonEdgesSrc === data.img.src) { done(); return; }
+        const src = data.img.src, { c, x, sw, sh, px } = neonEdgeSource(data.img), id = Math.random();
+        const finish = (ev) => {
+            if (ev.data.id !== id) return; w.removeEventListener('message', finish);
+            try { if (data.img.src === src && !(data._neonEdges && data._neonEdgesSrc === src)) { x.putImageData(new ImageData(ev.data.o, sw, sh), 0, 0); bakeNeonEdges(data, c); } } catch (e) {}
+            done();
+        };
+        w.addEventListener('message', finish);
+        w.postMessage({ id, px, sw, sh, rgb: NEON_EDGE_RGB }, [px.buffer]);
+    }
     // 화면이 한가할 때 미리 계산해 둔다 (검색을 누른 순간 계산하면 첫 프레임이 멈칫했다)
+    // 사진이 여러 장이면 한꺼번에 몰리지 않게 한 장씩, 첫 화면이 다 뜨고 잠시 뒤부터 (켜자마자 계산이 몰려 첫 화면이 버벅였다)
+    const neonWarmQueue = []; let neonWarmTimer = 0;
     function warmNeonEdges(data) {
         if (!data || data._neonWarm === (data.img && data.img.src)) return;
         data._neonWarm = data.img && data.img.src;
-        const run = () => ensureNeonEdges(data);
-        if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 3000 }); else setTimeout(run, 600);
+        neonWarmQueue.push(data);
+        clearTimeout(neonWarmTimer); neonWarmTimer = setTimeout(warmNextNeon, 2500);
+    }
+    function warmNextNeon() {
+        const data = neonWarmQueue.shift(); if (!data) return;
+        const run = () => warmNeonEdgesAsync(data, () => { neonWarmTimer = setTimeout(warmNextNeon, 200); });
+        if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 3000 }); else setTimeout(run, 0);
     }
     function startAiScan(data) {
         const stage = data.noteStage, base = data.canvas;
@@ -3791,7 +3833,7 @@
         syncPhotoView();
         if (document.body.classList.contains('hero-search-active')) { clearTimeout(heroHomeTimer); heroHomeTimer = setTimeout(renderHeroHome, 150); } // 사진이 줄줄이 붙는 동안엔 마지막에 한 번 (브리핑 숫자가 매번 0부터 다시 올라가지 않게)
     }
-    let heroHomeTimer = 0;
+    let heroHomeTimer = 0, bootPhotos = null;
 
     // 사진 위 글자 크기: 기본값(폰 22 · PC 16)에서 얼마나 키웠는지를 저장해 다음에 열어도 유지 (가−/가+와 설정이 같은 값을 쓴다)
     const FONT_BASE = bubbleFontSize;
@@ -5064,7 +5106,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.6';
+    const APP_VERSION = '베타 2026.10.20.7';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5473,12 +5515,15 @@
     function renderHeroHome() {
         const sum = document.getElementById('heroSummary'), quick = document.getElementById('heroQuick');
         if (!sum || !quick) return;
-        const photos = imageList.filter(d => d.id !== 'dummy_root');
+        const loaded = imageList.filter(d => d.id !== 'dummy_root');
+        // 켜는 중(사진을 아직 붙이는 중)엔 저장된 내용으로 바로 그린다 — 사진을 다 붙일 때까지 브리핑이 비어 있어 첫 화면이 느려 보였다
+        const photos = bootPhotos && loaded.length < bootPhotos.length ? bootPhotos : loaded;
         const zoneCount = photos.reduce((n, d) => n + d.zones.length, 0);
         const itemCount = new Set(photos.flatMap(d => d.zones.flatMap(z => z.items.map(i => i.name)))).size;
         renderBrief(sum, photos, zoneCount, itemCount);
         const history = loadSearchStore(SEARCH_HISTORY_KEY, []).slice(0, 5);
-        const frequent = Object.entries(loadSearchStore(SEARCH_PICKS_KEY, {})).filter(([name]) => existsInStore(name)).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        const has = (name) => photos.some(d => d.title === name || d.zones.some(z => z.name === name || z.items.some(it => it.name === name)));
+        const frequent = Object.entries(loadSearchStore(SEARCH_PICKS_KEY, {})).filter(([name]) => has(name)).sort((a, b) => b[1] - a[1]).slice(0, 4);
         const chip = (q, extra = '') => `<button type="button" class="hero-chip" data-q="${escapeHtml(q)}" onclick="applySearchSuggestion(this)">${escapeHtml(q)}${extra}</button>`;
         let html = '';
         const pinned = [...new Set(photos.flatMap(d => d.zones.flatMap(z => z.items.filter(i => i.pin).map(i => i.name))))].slice(0, 8);
@@ -5491,7 +5536,7 @@
     // 창고 브리핑 카드: 구역·물건·이번 주 찾음·부족 + 마지막 재고 확인. 숫자는 바뀌었을 때(처음 포함) 0부터 올라간다
     function renderBrief(el, photos, zoneCount, itemCount) {
         if (!photos.length) { el.innerHTML = ''; el.dataset.key = ''; return; }
-        const stock = stockOn(), low = stock ? stockOrderLines().lines.length : 0, week = weekFinds();
+        const stock = stockOn(), low = stock ? stockOrderLines(photos).lines.length : 0, week = weekFinds();
         const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
         const ago = (t) => { const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? '오늘' : d === 1 ? '어제' : `${d}일 전`; };
         const foot = stock ? (counted ? `마지막 재고 확인 <b>${ago(counted)}</b>${low ? ` · 발주할 물건 <b>${low}개</b>` : ' · 모자란 물건 없음'}` : low ? `발주할 물건 <b>${low}개</b>` : '재고를 아직 안 셌어요 · 아래 <b>[점검]</b>으로 세어 보세요') : `사진 <b>${photos.length}장</b>을 지도로 보고 있어요`;
@@ -7320,8 +7365,8 @@
     // 누를 때마다 전체(사진 포함)를 저장하면 무거우니 잠깐 모았다가 한 번에
     function queueStockSave() { clearTimeout(stockSaveTimer); stockSaveTimer = setTimeout(() => { stockSaveTimer = 0; saveData(); }, 700); }
     function flushStockSave() { if (stockSaveTimer) { clearTimeout(stockSaveTimer); stockSaveTimer = 0; saveData(); } }
-    function stockOrderLines() {
-        const photos = stockPhotos(), multi = photos.length > 1, map = new Map();
+    function stockOrderLines(photos = stockPhotos()) {
+        const multi = photos.length > 1, map = new Map();
         let uncounted = 0;
         photos.forEach((d, pi) => d.zones.forEach((z, zi) => z.items.forEach(it => {
             if (!isNum(it.par)) return;
@@ -7504,9 +7549,13 @@
         if (saved && saved.length > 0) {
             // 사진은 한꺼번에 읽되, 화면에는 저장된 순서대로 붙인다 (먼저 읽힌 사진부터 붙이면 작은 사진이 앞으로 튀어나와 순서가 뒤섞였다)
             const loads = saved.map(s => new Promise(resolve => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = s.imgData; }));
+            bootPhotos = saved;
+            // 한 장 붙일 때마다 화면에 한 번 숨을 돌려 준다 (사진이 많으면 다 붙일 때까지 눌러도 반응이 없었다)
+            const breathe = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
             loads.reduce((prev, load, i) => prev.then(() => load).then(img => {
                 const s = saved[i]; createNewCanvasElement({ img, zones: s.zones, id: s.id, title: s.title, imgData: s.imgData });
-            }), Promise.resolve()).then(() => {
+            }).then(breathe), Promise.resolve()).then(() => {
+                bootPhotos = null;
                 syncStockBadge();
                 // 첫 화면의 업종별 예시 카드로 들어왔으면 그 사진으로 바로 간다
                 let focus = null; try { focus = sessionStorage.getItem('sampleFocus'); sessionStorage.removeItem('sampleFocus'); } catch (e) {}
