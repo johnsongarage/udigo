@@ -828,6 +828,13 @@
         .stock-exp.has-date { border-style: solid; color: var(--text2); }
         .stock-exp.is-soon { border-color: #f3a3ab; background: #ffe3e6; color: #d0283a; }
         .stock-exp.is-over { border-color: #d0283a; background: #d0283a; color: #fff; }
+        .stock-exp.is-big { flex: none; justify-content: center; min-width: 104px; height: 36px; margin-top: 0; padding: 0 10px; border-radius: 10px; font-size: 13px; }
+        /* 세기 안의 [수량 | 기준 | 기한]: 한 번에 한 가지만 칸으로 보여 준다 (나머지는 오른쪽 작은 글씨) */
+        .stock-field { flex: none; margin-top: 8px; }
+        .stock-field[hidden] { display: none; }
+        .stock-peek { flex: none; min-width: 40px; font-size: 11.5px; color: var(--text3); text-align: right; white-space: nowrap; }
+        .stock-peek.is-soon { color: #d0283a; font-weight: 700; }
+        .stock-peek.is-over { color: #d0283a; font-weight: 800; }
         .stock-exp input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
         .stock-tab-off { display: none !important; }
         .stock-order-row .t { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
@@ -2184,6 +2191,11 @@
         <button type="button" role="tab" data-tab="count" onclick="setStockTab('count')">세기</button>
         <button type="button" role="tab" data-tab="order" onclick="setStockTab('order')" id="stockOrderTab">발주 목록</button>
         <button type="button" role="tab" data-tab="exp" onclick="setStockTab('exp')" id="stockExpTab">유통기한</button>
+    </div>
+    <div class="seg stock-field" id="stockField" role="group" aria-label="세기에서 적을 것">
+        <button type="button" data-field="qty" onclick="setStockField('qty')">수량</button>
+        <button type="button" data-field="par" onclick="setStockField('par')">기준</button>
+        <button type="button" data-field="exp" onclick="setStockField('exp')">유통기한</button>
     </div>
     <div id="stockList" class="stock-list"></div>
     <div class="print-actions" id="stockActions"></div>
@@ -4738,7 +4750,7 @@
         document.getElementById('icMemo').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) e.target.blur(); });
         // Esc는 카드만 닫는다 (뒤의 구역 창·점검 창까지 같이 닫히지 않게)
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && itemCardCtx) { e.stopImmediatePropagation(); closeItemCard(); } }, true);
-        // 점검(세기): 물건 이름을 누르면 물건 카드 (날짜 칩은 그대로 달력)
+        // 점검(세기): 물건 이름을 누르면 물건 카드
         document.getElementById('stockList').addEventListener('click', (e) => {
             const n = e.target.closest('.stock-name'); if (!n || e.target.closest('.stock-exp')) return;
             openStockItemCard(n.closest('.stock-row'));
@@ -5040,7 +5052,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.1';
+    const APP_VERSION = '베타 2026.10.20.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -7134,6 +7146,8 @@
     // ────────────────────────────────────────────────────────────
     const STOCK_KEY = 'stockMode', STOCK_COUNTED_KEY = 'stockCountedAt', STOCK_LOG_KEY = 'stockLog';
     let stockTab = 'count', stockSaveTimer = 0;
+    let stockField = (v => ['qty', 'par', 'exp'].includes(v) ? v : 'qty')(safeStorage.getItem('stockField')); // 세기에서 지금 적는 것 (기억)
+    function setStockField(f) { flushStockSave(); stockField = f; try { safeStorage.setItem('stockField', f); } catch (e) {} const list = document.getElementById('stockList'); renderStock(); list.scrollTop = 0; }
     function stockOn() { return safeStorage.getItem(STOCK_KEY) !== '0'; } // 기본 기능: 설정에서 끈 사람('0')만 꺼짐
     const isNum = (v) => typeof v === 'number' && isFinite(v);
     function expBadge(it) { // 구역 목록 칩의 유통기한 (임박·지남만, 여유 있으면 안 보임)
@@ -7312,12 +7326,16 @@
         const counted = parseInt(safeStorage.getItem(STOCK_COUNTED_KEY) || '0', 10);
         const { lines, uncounted } = stockOrderLines();
         document.querySelectorAll('#stockModal [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === stockTab)));
-        const S = stockOn(), exps = expLines(), expN = exps.filter(l => l.state).length;
+        const S = stockOn(), exps = expLines(), expN = exps.filter(l => l.state).length, F = S ? stockField : 'exp';
+        const fieldBar = document.getElementById('stockField'); fieldBar.hidden = stockTab !== 'count' || !S;
+        fieldBar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.field === F)));
         document.getElementById('stockOrderTab').textContent = lines.length ? `발주 목록 (${lines.length})` : '발주 목록';
         document.getElementById('stockOrderTab').classList.toggle('stock-tab-off', !S); // 재고 세기를 끈 사람은 세기(날짜만)·유통기한
         document.getElementById('stockExpTab').textContent = expN ? `유통기한 (${expN})` : '유통기한';
         document.getElementById('stockSub').textContent = stockTab === 'count'
-            ? (S ? `선반 순서대로 세요. 날짜 칩을 누르면 유통기한.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}` : '물건마다 날짜 칩을 눌러 유통기한을 적어요.')
+            ? (!S || F === 'exp' ? '물건마다 날짜를 눌러 유통기한을 적어요. 이름을 누르면 물건 카드.'
+                : F === 'par' ? '기준 = 이만큼은 있어야 하는 수. 처음 한 번만 적어 두면 돼요.'
+                : `선반 순서대로 세요. 이름을 누르면 물건 카드.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`)
             : stockTab === 'exp' ? `날짜가 가까운 순이에요. ${EXP_SOON_DAYS}일 안이면 빨강.`
             : '기준보다 모자란 것만 모았어요. 보내기로 카톡·문자에 붙여 넣으세요.';
         const actions = document.getElementById('stockActions');
@@ -7325,7 +7343,7 @@
             const intro = S && (stockIntroOpen || safeStorage.getItem('stockIntroSeen') !== '1') ? `<div class="stock-intro" role="note">
                 <b class="t">처음이세요? 세 가지만 알면 돼요</b>
                 <ol><li><b>− ? +</b> 로 지금 몇 개 있는지 세요<small>모르면 비워 둬도 돼요</small></li>
-                <li><b>기준</b> = 이만큼은 있어야 하는 수<small>기준보다 적으면 빨갛게 보여요</small></li>
+                <li>위 <b>[기준]</b>에서 이만큼은 있어야 하는 수를 적어요<small>처음 한 번만. 기준보다 적으면 빨갛게 보여요</small></li>
                 <li><b>[다 셌어요]</b>를 누르면 모자란 것만 <b>[발주 목록]</b>에 모여요<small>카톡·문자로 바로 보낼 수 있어요</small></li></ol>
                 <button type="button" class="ok" onclick="closeStockIntro()">알겠어요</button></div>` : '';
             list.innerHTML = intro + photos.map((d, pi) => {
@@ -7333,9 +7351,8 @@
                     z.items.map((it, ii) => {
                         const low = isNum(it.qty) && isNum(it.par) && it.qty < it.par;
                         return `<div class="stock-row${low ? ' is-low' : ''}" data-at="${pi}.${zi}.${ii}">
-                            <span class="stock-name">${escapeHtml(it.name)}${(it.comment || '').trim() ? `<small>${escapeHtml(it.comment.trim())}</small>` : ''}${expChip(it)}</span>
-                            ${S ? `<span class="stock-ctl"><button type="button" data-act="dec" aria-label="${escapeHtml(it.name)} 하나 빼기">−</button><input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="qty" value="${isNum(it.qty) ? it.qty : ''}" placeholder="?" aria-label="${escapeHtml(it.name)} 지금 수량"><button type="button" data-act="inc" aria-label="${escapeHtml(it.name)} 하나 더하기">+</button></span>
-                            <label class="stock-par">기준<input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="par" value="${isNum(it.par) ? it.par : ''}" placeholder="–" aria-label="${escapeHtml(it.name)} 기준 수량"></label>` : ''}
+                            <span class="stock-name">${escapeHtml(it.name)}${(it.comment || '').trim() ? `<small>${escapeHtml(it.comment.trim())}</small>` : ''}</span>
+                            ${stockPeek(it, F, S)}${stockFieldCtl(it, F)}
                         </div>`;
                     }).join('') : '').join('');
                 return zones ? `<div class="stock-photo">${multi ? `${photoLetter(pi)} · ` : ''}${escapeHtml(d.title || '')}</div>${zones}` : '';
@@ -7346,7 +7363,7 @@
                 <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="setStockTab('exp')">유통기한 보기</button>`;
         } else if (stockTab === 'exp') {
             list.innerHTML = exps.length ? exps.map(l => `<div class="stock-order-row"><span class="n exp${l.state ? ' is-' + l.state : ''}"><span>${l.state ? expLabel(l.it) : `D-${l.days}`}</span></span><span class="t">${escapeHtml(l.it.name)}<small>${mmdd(l.it.exp)}까지 · ${escapeHtml(l.where)}</small></span></div>`).join('')
-                : `<div class="stock-empty">유통기한을 적은 물건이 없어요.<br>[세기]에서 물건마다 <b>날짜 칩</b>을 눌러 적으면 여기 가까운 순으로 모여요.</div>`;
+                : `<div class="stock-empty">유통기한을 적은 물건이 없어요.<br>[세기] › <b>[유통기한]</b>에서 물건마다 날짜를 적으면 여기 가까운 순으로 모여요.</div>`;
             actions.innerHTML = `<button type="button" class="btn-base btn-secondary" style="flex: 1;" onclick="setStockTab('count')">세기로</button>
                 <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="showLowOnMap('exp')"${expN ? '' : ' disabled'}><i class="ti ti-radar-2"></i> 지도에서 보기</button>`;
         } else {
@@ -7357,9 +7374,25 @@
                 <button type="button" class="btn-base btn-primary" style="flex: 1;" onclick="shareStockOrder()"${lines.length ? '' : ' disabled'}><i class="ti ti-send"></i> 보내기</button>`;
         }
     }
-    function expChip(it) { // 세기 줄의 유통기한 칩: 없으면 "기한 +", 있으면 날짜나 D-day
-        const st = expState(it), txt = !it.exp ? '기한 +' : st ? `${expLabel(it)} · ${mmdd(it.exp)}` : `${mmdd(it.exp)}까지`;
-        return `<label class="stock-exp${it.exp ? ' has-date' : ''}${st ? ' is-' + st : ''}"><span>${txt}</span><input type="date" data-f="exp" value="${escapeHtml(it.exp || '')}" aria-label="${escapeHtml(it.name)} 유통기한"></label>`;
+    // 세기 줄 오른쪽: 지금 고른 것(수량·기준·유통기한) 하나만 칸으로
+    function stockFieldCtl(it, F) {
+        const n = escapeHtml(it.name);
+        if (F === 'exp') return expChip(it);
+        if (F === 'par') return `<label class="stock-par">기준<input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="par" value="${isNum(it.par) ? it.par : ''}" placeholder="–" aria-label="${n} 기준 수량"></label>`;
+        return `<span class="stock-ctl"><button type="button" data-act="dec" aria-label="${n} 하나 빼기">−</button><input type="number" inputmode="numeric" enterkeyhint="next" min="0" data-f="qty" value="${isNum(it.qty) ? it.qty : ''}" placeholder="?" aria-label="${n} 지금 수량"><button type="button" data-act="inc" aria-label="${n} 하나 더하기">+</button></span>`;
+    }
+    // 나머지 값 중 그 화면에서 같이 보면 좋은 것만 작게: 수량 볼 땐 기준, 기준 적을 땐 지금 수량, 어디서든 기한이 가까우면 D-day
+    function stockPeek(it, F, S) {
+        const st = expState(it);
+        if (F !== 'exp' && st) return `<span class="stock-peek is-${st}">${expLabel(it)}</span>`;
+        if (F === 'qty' && isNum(it.par)) return `<span class="stock-peek">기준 ${it.par}</span>`;
+        if (F === 'par' && isNum(it.qty)) return `<span class="stock-peek">지금 ${it.qty}</span>`;
+        if (F === 'exp' && S && isNum(it.qty)) return `<span class="stock-peek">${it.qty}개</span>`;
+        return '';
+    }
+    function expChip(it) { // 유통기한 칸: 없으면 "날짜 +", 있으면 날짜나 D-day (누르면 휴대폰 달력)
+        const st = expState(it), txt = !it.exp ? '날짜 +' : st ? `${expLabel(it)} · ${mmdd(it.exp)}` : `${mmdd(it.exp)}까지`;
+        return `<label class="stock-exp is-big${it.exp ? ' has-date' : ''}${st ? ' is-' + st : ''}"><span>${txt}</span><input type="date" data-f="exp" value="${escapeHtml(it.exp || '')}" aria-label="${escapeHtml(it.name)} 유통기한"></label>`;
     }
     function stockItemAt(row) {
         const [pi, zi, ii] = (row.dataset.at || '').split('.').map(Number), d = stockPhotos()[pi];
