@@ -1115,7 +1115,12 @@
         .zl-more-rows.is-open > .ti { font-size: 18px; color: var(--text2); }
         .zl-more { flex: none; align-self: center; font-size: 12px; font-weight: 600; color: var(--text2); padding: 0 2px; }
         .zl-go { flex: none; color: var(--text3); font-size: 16px; }
-        @media (max-width: 719px) { .zl-row { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; } .zl-row .zl-go { align-self: center; } } /* 폰: 번호를 이름 줄에 맞춤 */
+        /* 보기 모드 오른쪽 [편집]: 줄(=위치 보기)과 다른 곳이란 걸 옅은 세로선으로 나누고, 누르는 곳은 손가락 크기로 */
+        .zl-edit-btn { flex: none; align-self: stretch; position: relative; display: flex; align-items: center; margin: 0 -6px 0 0; padding: 0 6px 0 12px; min-height: 44px; border: 0; background: none; font: inherit; cursor: pointer; }
+        .zl-edit-btn::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; border-left: 1px solid var(--border); }
+        .zl-edit-btn span { display: inline-flex; align-items: center; height: 30px; padding: 0 11px; border: 1px solid var(--border); border-radius: 15px; background: var(--card); color: var(--accent-text); font-size: 12.5px; font-weight: 700; }
+        .zl-edit-btn:active span { background: var(--accent-soft); }
+        @media (max-width: 719px) { .zl-row { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; } .zl-row .zl-go { align-self: center; } .zl-row .zl-edit-btn { align-self: stretch; } } /* 폰: 번호를 이름 줄에 맞춤 */
         @media (min-width: 720px) { .zl-row-top { flex: none; max-width: 30%; flex-direction: column; align-items: flex-start; gap: 0; } } /* 넓은 화면: 이름 옆에 칩 */
         .zl-grid { display: grid; grid-template-columns: 1fr 1fr; margin: 0 -1px -1px 0; }
         .zl-grid .zone-item, .zl-grid .zone-item:last-child { padding: 10px 10px 12px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 0; }
@@ -4555,7 +4560,7 @@
                             <span class="zl-row-top"><span class="zl-name">${escapeHtml(z.name || '이름 없는 구역')}</span>${isZoneStale(z) ? `<span class="zone-checked is-stale${isZoneOld(z) ? ' is-old' : ''}">${formatCheckedAgo(z.checkedAt)} 확인</span>` : ''}</span>
                             <span class="zl-row-items" data-key="${data.id}:${i}">${z.items.length ? shown.map(chip).join('') + (more ? `<span class="zl-more">+${more}</span>` : '') : '<span class="zl-empty">비어 있음</span>'}</span>
                         </span>
-                        <i class="ti ${isEditMode ? 'ti-pencil' : 'ti-chevron-right'} zl-go" aria-hidden="true"></i>
+                        ${isEditMode ? '<i class="ti ti-pencil zl-go" aria-hidden="true"></i>' : `<button type="button" class="zl-edit-btn" onclick="event.stopPropagation(); editZone('${data.id}', ${i})" onkeydown="event.stopPropagation()" aria-label="${escapeHtml(z.name || '이름 없는 구역')} 편집"><span>편집</span></button>`}
                     </div>`;
                 }).join('')}</div>${zones.length > (ZL_ROWS || 6) ? (listOpen
                     ? `<button type="button" class="zl-more-rows is-open" onclick="toggleZoneListMore('${data.id}', false)"><i class="ti ti-chevron-up"></i> 목록 접기</button>`
@@ -5059,7 +5064,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.3';
+    const APP_VERSION = '베타 2026.10.20.4';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
