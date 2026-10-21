@@ -5109,9 +5109,11 @@
     document.querySelectorAll('[data-app-name-en]').forEach(el => { el.textContent = APP_NAME_EN; el.hidden = !APP_NAME_EN; });
     // 🔗 앱 알려주기: 카톡·문자 등으로 앱 주소를 보낸다 (공유 창이 없는 PC에서는 주소 복사)
     const APP_URL = 'https://trafficjourney.github.io/udigo/';
+    // 공유 창은 폰(터치)에서만: PC 크롬·엣지도 navigator.share가 있지만 윈도우·맥 공유 창엔 카톡이 없어 보낼 데가 없다 → PC는 복사·파일 받기로
+    function canUseShareSheet() { return !!navigator.share && window.matchMedia('(pointer: coarse)').matches; }
     async function shareApp() {
         const text = '사진 한 장이 창고 지도가 돼요. 물건 이름만 대면 어느 칸인지 나와요. (무료 · 가입 없음)';
-        if (navigator.share) {
+        if (canUseShareSheet()) {
             try { await navigator.share({ title: APP_NAME, text, url: APP_URL }); return; }
             catch (err) { if (err && err.name === 'AbortError') return; }
         }
@@ -5120,7 +5122,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.21.4';
+    const APP_VERSION = '베타 2026.10.21.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5223,7 +5225,7 @@
         return a >= 0 && b > a ? text.slice(a + BACKUP_PDF_BEGIN.length, b) : text;
     }
     function canShareBackup() {
-        try { return !!(navigator.canShare && navigator.canShare({ files: [new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })] })); } catch (e) { return false; }
+        try { return canUseShareSheet() && !!(navigator.canShare && navigator.canShare({ files: [new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })] })); } catch (e) { return false; }
     }
     async function shareBackup() {
         closeBackupChoice();
@@ -7189,11 +7191,11 @@
         catch (e) { console.error(e); } finally { PRINT.pxPerMm = px; PRINT.raw = false; }
         if (!files.length) return;
         const count = () => { try { safeStorage.setItem('chatShares', String((parseInt(safeStorage.getItem('chatShares') || '0', 10) || 0) + 1)); } catch (e) {} }; // 폰에만 남는 횟수 (몇 번 보냈는지 사장님께 여쭤볼 때 참고)
-        if (navigator.canShare && navigator.canShare({ files })) {
+        if (canUseShareSheet() && navigator.canShare && navigator.canShare({ files })) {
             navigator.share({ files }).then(count).catch(e => { if (e && e.name !== 'AbortError') showToast('보내기 창을 열지 못했어요. 한 번 더 눌러 주세요'); });
         } else {
             downloadReportAsPDF(); count();
-            showToast('이 기기에선 바로 보내기가 안 돼서 PDF로 받았어요. 카톡에서 파일로 보내 주세요', 4500);
+            showToast(canUseShareSheet() ? '이 기기에선 바로 보내기가 안 돼서 PDF로 받았어요. 카톡에서 파일로 보내 주세요' : 'PDF로 받았어요. PC 카톡 대화방에 파일을 끌어다 놓으면 보내져요', 4500);
         }
     }
     async function downloadReportAsPDF() {
@@ -7536,8 +7538,8 @@
     }
     async function shareStockOrder() {
         const text = stockOrderText();
-        if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
-        try { await navigator.clipboard.writeText(text); showToast('발주 목록을 복사했어요. 카톡·문자에 붙여 넣으세요'); }
+        if (canUseShareSheet()) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+        try { await navigator.clipboard.writeText(text); showToast('발주 목록을 복사했어요. 카톡 대화방에 붙여 넣으세요 (PC는 Ctrl+V)', 3500); }
         catch (e) { prompt('아래 글을 복사해 보내세요', text); }
     }
 
