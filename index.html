@@ -1198,6 +1198,7 @@
         /* 베타 표시: PC는 머리글 배지, 휴대폰은 머리글이 좁아 첫 화면·검색 홈에만 */
         .beta-badge { display: inline-flex; align-items: center; height: 17px; padding: 0 5px; margin-left: 6px; border-radius: 4px; border: 1px solid var(--accent2); color: var(--accent-text); font-size: 10px; font-weight: 800; letter-spacing: 0.3px; line-height: 1; }
         @media (max-width: 600px) { .search-bar .beta-badge { display: none; } }
+        body.hero-search-active .search-bar .beta-badge { display: none; } /* 홈 화면은 테마색 바탕이라 배지 글씨가 묻히고, 아래 '무료 베타' 알약이 이미 있다 */
         .beta-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 700; }
         .welcome-beta { text-align: center; margin-bottom: 8px; }
         /* 첫 화면 이름 줄 */
@@ -2160,7 +2161,7 @@
         </div>
         <!-- 담긴 물건(눌러서 메모, ×로 빼기) / 아래: 자주 쓰는 물건 후보(눌러서 담기, 처음엔 8개만) -->
         <div class="zm-section-head">
-            <span>이 구역에 있는 것 <small class="zm-head-hint">누르면 물건 카드</small></span>
+            <span>이 구역에 있는 것 <small class="zm-head-hint">* 눌러서 상세 편집</small></span>
             <span id="zoneItemCount" class="zm-count"></span>
         </div>
         <div id="zmPicked" class="zm-chips is-picked" data-empty="아직 없어요 · 위에서 찾거나 아래에서 눌러 담아요"></div>
@@ -2311,7 +2312,7 @@
         <div id="printPages" class="print-pages" onclick="if (event.target.tagName === 'CANVAS') openPrintViewer(event.target)"></div>
         <div class="print-zoom-ctl" role="group" aria-label="미리보기 크기">
             <button type="button" id="printZoomOut" onclick="stepPrintZoom(-1)" aria-label="10% 작게">−</button>
-            <button type="button" id="printZoomVal" class="pz-val" onclick="setPrintZoom(1)" title="원래 크기로">100%</button>
+            <button type="button" id="printZoomVal" class="pz-val" onclick="setPrintZoom(printDefaultZoom())" title="처음 크기로">100%</button>
             <button type="button" id="printZoomIn" onclick="stepPrintZoom(1)" aria-label="10% 크게">+</button>
         </div>
         <button type="button" class="print-zoom-btn" onclick="openPrintViewer()"><i class="ti ti-arrows-maximize"></i> 크게 보기</button>
@@ -5108,9 +5109,11 @@
     document.querySelectorAll('[data-app-name-en]').forEach(el => { el.textContent = APP_NAME_EN; el.hidden = !APP_NAME_EN; });
     // 🔗 앱 알려주기: 카톡·문자 등으로 앱 주소를 보낸다 (공유 창이 없는 PC에서는 주소 복사)
     const APP_URL = 'https://trafficjourney.github.io/udigo/';
+    // 공유 창은 폰(터치)에서만: PC 크롬·엣지도 navigator.share가 있지만 윈도우·맥 공유 창엔 카톡이 없어 보낼 데가 없다 → PC는 복사·파일 받기로
+    function canUseShareSheet() { return !!navigator.share && window.matchMedia('(pointer: coarse)').matches; }
     async function shareApp() {
         const text = '사진 한 장이 창고 지도가 돼요. 물건 이름만 대면 어느 칸인지 나와요. (무료 · 가입 없음)';
-        if (navigator.share) {
+        if (canUseShareSheet()) {
             try { await navigator.share({ title: APP_NAME, text, url: APP_URL }); return; }
             catch (err) { if (err && err.name === 'AbortError') return; }
         }
@@ -5119,7 +5122,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.20.8';
+    const APP_VERSION = '베타 2026.10.21.5';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5222,7 +5225,7 @@
         return a >= 0 && b > a ? text.slice(a + BACKUP_PDF_BEGIN.length, b) : text;
     }
     function canShareBackup() {
-        try { return !!(navigator.canShare && navigator.canShare({ files: [new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })] })); } catch (e) { return false; }
+        try { return canUseShareSheet() && !!(navigator.canShare && navigator.canShare({ files: [new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })] })); } catch (e) { return false; }
     }
     async function shareBackup() {
         closeBackupChoice();
@@ -6882,7 +6885,7 @@
         const photos = imageList.filter(d => d.id !== 'dummy_root' && d.canvas);
         if (!photos.length) { alert("먼저 사진을 등록해주세요."); return; }
         const data = photos.find(d => d.id == (dataId || currentPhotoId)) || photos[0];
-        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; setPrintZoom(1); // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
+        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; syncPrintPreviewPx(); setPrintZoom(printDefaultZoom()); // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
         renderPrintPreview(photos.length > 1 && !dataId ? 'all' : 'photo');
         document.getElementById('printModal').style.display = 'flex';
         // 이미 열려 있는데 또 열면(인쇄 버튼 두 번 등) 잠금이 두 번 걸리고 닫을 때 한 번만 풀려 스크롤이 막힌 채 남았다
@@ -6916,7 +6919,17 @@
     }
     const printYield = () => new Promise(r => setTimeout(r, 0));
     // 미리보기는 종이 해상도의 절반으로 그려 캔버스를 그대로 붙인다 (큰 JPEG를 만들던 게 느림의 대부분이었다). 열려 있는 동안 고른 조합은 기억
-    const PRINT_PREVIEW_PX = 4;
+    // 미리보기 해상도: 화면 픽셀(× 기기 배율)에 맞춰 그린다. 고정 4px/mm면 PC 100%에선 줄여 보여 글씨가 깨지고, 고해상도 폰에선 늘려 보여 뿌옇다
+    // (PC에서 140%로 보면 또렷했다 → PC는 140%로 열고, 폰은 140%까지 키워도 또렷한 해상도로)
+    const PRINT_ZOOM_DEFAULT_PC = 1.4;
+    function printDefaultZoom() { return window.innerWidth >= 900 ? PRINT_ZOOM_DEFAULT_PC : 1; }
+    let PRINT_PREVIEW_PX = 4;
+    function syncPrintPreviewPx() {
+        const w = window.innerWidth, h = window.innerHeight;
+        const cssW = w >= 900 ? Math.min(w * 0.94 - 390, (h * 0.92 - 190) * 0.7071) : w * 0.9; // 줌 100%일 때 한 쪽 폭 (CSS의 #printModal .print-pages canvas와 같은 계산)
+        const px = Math.round(cssW * 1.4 * (window.devicePixelRatio || 1) / PRINT.pageWmm);
+        PRINT_PREVIEW_PX = Math.min(8, Math.max(4, px));
+    }
     let printJob = 0, printCache = new Map(), printPageCount = 0, printNameTimer = 0;
     function syncPrintBtn() { // PDF를 만드는 동안엔 진행 표시를 그대로 둔다
         const btn = document.getElementById('printDownloadBtn');
@@ -7021,7 +7034,7 @@
         input.hidden = true; btn.hidden = false;
         renderPrintPreview(); // 머리글이 바뀌었으면 미리보기도 (같으면 기억해 둔 것을 바로 쓴다)
     }
-    // 미리보기 크기 [−] 100% [+]: 10%씩 50%~300%. 가운데 보던 자리가 그대로 있게 스크롤을 맞춘다 (가운데 숫자를 누르면 100%)
+    // 미리보기 크기 [−] 100% [+]: 10%씩 50%~300%. 가운데 보던 자리가 그대로 있게 스크롤을 맞춘다 (가운데 숫자를 누르면 처음 크기: PC 140%, 폰 100%)
     const PRINT_ZMIN = 0.5, PRINT_ZMAX = 3;
     let printZoom = 1;
     function setPrintZoom(z) {
@@ -7178,11 +7191,11 @@
         catch (e) { console.error(e); } finally { PRINT.pxPerMm = px; PRINT.raw = false; }
         if (!files.length) return;
         const count = () => { try { safeStorage.setItem('chatShares', String((parseInt(safeStorage.getItem('chatShares') || '0', 10) || 0) + 1)); } catch (e) {} }; // 폰에만 남는 횟수 (몇 번 보냈는지 사장님께 여쭤볼 때 참고)
-        if (navigator.canShare && navigator.canShare({ files })) {
+        if (canUseShareSheet() && navigator.canShare && navigator.canShare({ files })) {
             navigator.share({ files }).then(count).catch(e => { if (e && e.name !== 'AbortError') showToast('보내기 창을 열지 못했어요. 한 번 더 눌러 주세요'); });
         } else {
             downloadReportAsPDF(); count();
-            showToast('이 기기에선 바로 보내기가 안 돼서 PDF로 받았어요. 카톡에서 파일로 보내 주세요', 4500);
+            showToast(canUseShareSheet() ? '이 기기에선 바로 보내기가 안 돼서 PDF로 받았어요. 카톡에서 파일로 보내 주세요' : 'PDF로 받았어요. PC 카톡 대화방에 파일을 끌어다 놓으면 보내져요', 4500);
         }
     }
     async function downloadReportAsPDF() {
@@ -7414,9 +7427,9 @@
         document.getElementById('stockOrderTab').classList.toggle('stock-tab-off', !S); // 재고 세기를 끈 사람은 세기(날짜만)·유통기한
         document.getElementById('stockExpTab').textContent = expN ? `유통기한 (${expN})` : '유통기한';
         document.getElementById('stockSub').textContent = stockTab === 'count'
-            ? (!S || F === 'exp' ? '물건마다 날짜를 눌러 유통기한을 적어요. 이름을 누르면 물건 카드.'
+            ? (!S || F === 'exp' ? '물건마다 날짜를 눌러 유통기한을 적어요. * 이름을 눌러서 상세 편집'
                 : F === 'par' ? '이것보다 적으면 빨갛게 되고 발주 목록에 들어가요. 처음 한 번만 적어 두면 돼요.'
-                : `이름을 누르면 물건 카드.${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`)
+                : `* 이름을 눌러서 상세 편집${counted ? ` · 마지막으로 다 센 날 ${new Date(counted).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}` : ''}`)
             : stockTab === 'exp' ? `날짜가 가까운 순이에요. ${EXP_SOON_DAYS}일 안이면 빨강.`
             : '최소 수량보다 모자란 것만 모았어요. 보내기로 카톡·문자에 붙여 넣으세요.';
         const actions = document.getElementById('stockActions');
@@ -7525,8 +7538,8 @@
     }
     async function shareStockOrder() {
         const text = stockOrderText();
-        if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
-        try { await navigator.clipboard.writeText(text); showToast('발주 목록을 복사했어요. 카톡·문자에 붙여 넣으세요'); }
+        if (canUseShareSheet()) { try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+        try { await navigator.clipboard.writeText(text); showToast('발주 목록을 복사했어요. 카톡 대화방에 붙여 넣으세요 (PC는 Ctrl+V)', 3500); }
         catch (e) { prompt('아래 글을 복사해 보내세요', text); }
     }
 
