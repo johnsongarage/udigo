@@ -2312,7 +2312,7 @@
         <div id="printPages" class="print-pages" onclick="if (event.target.tagName === 'CANVAS') openPrintViewer(event.target)"></div>
         <div class="print-zoom-ctl" role="group" aria-label="미리보기 크기">
             <button type="button" id="printZoomOut" onclick="stepPrintZoom(-1)" aria-label="10% 작게">−</button>
-            <button type="button" id="printZoomVal" class="pz-val" onclick="setPrintZoom(1)" title="원래 크기로">100%</button>
+            <button type="button" id="printZoomVal" class="pz-val" onclick="setPrintZoom(printDefaultZoom())" title="처음 크기로">100%</button>
             <button type="button" id="printZoomIn" onclick="stepPrintZoom(1)" aria-label="10% 크게">+</button>
         </div>
         <button type="button" class="print-zoom-btn" onclick="openPrintViewer()"><i class="ti ti-arrows-maximize"></i> 크게 보기</button>
@@ -5120,7 +5120,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.21.1';
+    const APP_VERSION = '베타 2026.10.21.2';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -6883,7 +6883,7 @@
         const photos = imageList.filter(d => d.id !== 'dummy_root' && d.canvas);
         if (!photos.length) { alert("먼저 사진을 등록해주세요."); return; }
         const data = photos.find(d => d.id == (dataId || currentPhotoId)) || photos[0];
-        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; setPrintZoom(1); // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
+        printPreviewId = data.id; printCache = new Map(); printOptsOpen = false; printCtlOpen = false; syncPrintPreviewPx(); setPrintZoom(printDefaultZoom()); // 열 때마다 새로 (그 사이 물건이 바뀌었을 수 있다)
         renderPrintPreview(photos.length > 1 && !dataId ? 'all' : 'photo');
         document.getElementById('printModal').style.display = 'flex';
         // 이미 열려 있는데 또 열면(인쇄 버튼 두 번 등) 잠금이 두 번 걸리고 닫을 때 한 번만 풀려 스크롤이 막힌 채 남았다
@@ -6917,7 +6917,17 @@
     }
     const printYield = () => new Promise(r => setTimeout(r, 0));
     // 미리보기는 종이 해상도의 절반으로 그려 캔버스를 그대로 붙인다 (큰 JPEG를 만들던 게 느림의 대부분이었다). 열려 있는 동안 고른 조합은 기억
-    const PRINT_PREVIEW_PX = 4;
+    // 미리보기 해상도: 화면 픽셀(× 기기 배율)에 맞춰 그린다. 고정 4px/mm면 PC 100%에선 줄여 보여 글씨가 깨지고, 고해상도 폰에선 늘려 보여 뿌옇다
+    // (PC에서 140%로 보면 또렷했다 → PC는 140%로 열고, 폰은 140%까지 키워도 또렷한 해상도로)
+    const PRINT_ZOOM_DEFAULT_PC = 1.4;
+    function printDefaultZoom() { return window.innerWidth >= 900 ? PRINT_ZOOM_DEFAULT_PC : 1; }
+    let PRINT_PREVIEW_PX = 4;
+    function syncPrintPreviewPx() {
+        const w = window.innerWidth, h = window.innerHeight;
+        const cssW = w >= 900 ? Math.min(w * 0.94 - 390, (h * 0.92 - 190) * 0.7071) : w * 0.9; // 줌 100%일 때 한 쪽 폭 (CSS의 #printModal .print-pages canvas와 같은 계산)
+        const px = Math.round(cssW * 1.4 * (window.devicePixelRatio || 1) / PRINT.pageWmm);
+        PRINT_PREVIEW_PX = Math.min(8, Math.max(4, px));
+    }
     let printJob = 0, printCache = new Map(), printPageCount = 0, printNameTimer = 0;
     function syncPrintBtn() { // PDF를 만드는 동안엔 진행 표시를 그대로 둔다
         const btn = document.getElementById('printDownloadBtn');
@@ -7022,7 +7032,7 @@
         input.hidden = true; btn.hidden = false;
         renderPrintPreview(); // 머리글이 바뀌었으면 미리보기도 (같으면 기억해 둔 것을 바로 쓴다)
     }
-    // 미리보기 크기 [−] 100% [+]: 10%씩 50%~300%. 가운데 보던 자리가 그대로 있게 스크롤을 맞춘다 (가운데 숫자를 누르면 100%)
+    // 미리보기 크기 [−] 100% [+]: 10%씩 50%~300%. 가운데 보던 자리가 그대로 있게 스크롤을 맞춘다 (가운데 숫자를 누르면 처음 크기: PC 140%, 폰 100%)
     const PRINT_ZMIN = 0.5, PRINT_ZMAX = 3;
     let printZoom = 1;
     function setPrintZoom(z) {
