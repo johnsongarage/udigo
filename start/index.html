@@ -112,9 +112,10 @@
 
   /* ── 6. 마무리 ── */
   .final { background: var(--navy); color: #fff; padding: 50px 0 30px; }
-  .final h2 { font-size: 27px; }
-  .final .cta { display: grid; gap: 10px; margin-top: 22px; max-width: 460px; }
-  .faq { margin-top: 34px; max-width: 640px; }
+  .final h2 { font-size: 27px; text-align: center; text-wrap: balance; }
+  .final .cta { display: grid; gap: 10px; margin: 22px auto 0; max-width: 460px; } /* 넓은 화면에서 왼쪽으로 쏠려 보였다 → 가운데 한 줄로 */
+  .final .safe { text-align: center; }
+  .faq { margin: 34px auto 0; max-width: 640px; }
   .faq details { border-top: 1px solid rgba(255,255,255,0.14); padding: 12px 0; }
   .faq details:last-child { border-bottom: 1px solid rgba(255,255,255,0.14); }
   .faq summary { cursor: pointer; font-weight: 700; font-size: 15px; list-style: none; }
@@ -122,7 +123,7 @@
   .faq summary::after { content: '+'; float: right; opacity: 0.6; }
   .faq details[open] summary::after { content: '−'; }
   .faq p { margin-top: 8px; font-size: 14.5px; color: rgba(255,255,255,0.78); }
-  .maker { margin-top: 34px; font-size: 14px; color: rgba(255,255,255,0.75); }
+  .maker { max-width: 640px; margin: 34px auto 0; font-size: 14px; color: rgba(255,255,255,0.75); }
   .maker b { color: #fff; }
   .maker a { color: var(--yellow); }
   footer { padding: 18px 0 calc(26px + env(safe-area-inset-bottom)); background: var(--navy); color: rgba(255,255,255,0.45); font-size: 12px; }
