@@ -1731,7 +1731,7 @@
     <div style="background: var(--bg); border: 1px solid var(--border); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
         <ol class="guide-steps">
             <li><i class="ti ti-camera"></i><div><b>사진 올리고 구역 만들기</b><span>사진 가운데 <b>[AI로 구역 찾기]</b>를 누르거나, <b>[직접 그리기]</b>로 사진 위를 끌어 구역을 만들어요. 나중에 고치려면 오른쪽 아래 <b>[구역 고치기]</b>.</span><small>AI로 찾을 때 사진만 외부 AI 서버로 보내져요.</small></div></li>
-            <li><i class="ti ti-search"></i><div><b>물건 찾기</b><span>위쪽 검색창에 이름이나 초성(ㅅㄹ)을 치거나, <b>마이크</b>를 눌러 말로 찾아요. 찾은 뒤 아래에 뜨는 <b>[네, 여기 있어요]</b>를 누르면 그 구역에 확인한 날짜가 남고, 30일 넘게 확인 안 한 구역은 따로 표시돼요. 물건을 넣을 땐 물건 관리 창의 마이크로 "빨대, 냅킨, 원두"처럼 여러 개를 한 번에 말해 추가할 수 있어요.</span></div></li>
+            <li><i class="ti ti-search"></i><div><b>물건 찾기</b><span>위쪽 검색창에 이름이나 앞 글자(ㅇㅅㅈ)를 치거나, <b>마이크</b>를 눌러 말로 찾아요. 찾은 뒤 아래에 뜨는 <b>[네, 여기 있어요]</b>를 누르면 그 구역에 확인한 날짜가 남고, 30일 넘게 확인 안 한 구역은 따로 표시돼요. 물건을 넣을 땐 물건 관리 창의 마이크로 "빨대, 냅킨, 원두"처럼 여러 개를 한 번에 말해 추가할 수 있어요.</span></div></li>
             <li><i class="ti ti-zoom-in"></i><div><b>작은 칸은 크게 보기</b><span>사진 위에서 <b>두 손가락을 벌리면</b> 사진이 크게 열려요. 사진 위 <b>[+]</b>, <b>[크게 보기]</b> 버튼으로도 키울 수 있어요.</span></div></li>
             <li><i class="ti ti-printer"></i><div><b>벽에 붙이기</b><span>아래 인쇄 버튼으로 A4를 뽑아 선반 옆에 붙여 두면, 폰 없이도 꺼낼 때·다시 넣을 때 자리를 찾아요.</span></div></li>
         </ol>
@@ -1899,7 +1899,7 @@
     <div class="hero-beta"><span class="beta-pill"><i class="ti ti-flask"></i> 무료 베타</span></div>
     <div class="hero-summary" id="heroSummary"></div>
     <div class="search-input-wrap">
-        <input type="text" id="searchBox" placeholder="이름·초성·말로 찾기" oninput="integratedSearch(false)" onfocus="this.select()">
+        <input type="text" id="searchBox" placeholder="찾을 물건 (예: 영수증 용지, ㅇㅅㅈ)" oninput="integratedSearch(false)" onfocus="this.select()">
         <span class="voice-bars" aria-hidden="true"><span></span><span></span><span></span></span>
         <i class="ti ti-search"></i>
         <button id="micBtn" class="icon-btn" onclick="startVoiceRecognition()" title="말로 검색" aria-label="말로 검색">
@@ -5122,7 +5122,7 @@
     }
     // ⚙ 설정 맨 아래: 버전 + 내 데이터 요약 (백업이 필요한 양인지, 폰 저장 공간을 얼마나 쓰는지)
     // 버전은 배포할 때 올린다 (YYYY.MM.DD, 같은 날 여러 번이면 뒤에 .2)
-    const APP_VERSION = '베타 2026.10.21.5';
+    const APP_VERSION = '베타 2026.10.22.1';
     async function syncSettingsFooter() {
         const el = document.getElementById('settingsFooter'); if (!el) return;
         const photos = imageList.filter(d => d.id !== 'dummy_root'), zones = photos.reduce((n, d) => n + d.zones.length, 0), items = photos.reduce((n, d) => n + d.zones.reduce((m, z) => m + z.items.length, 0), 0);
@@ -5546,7 +5546,7 @@
         if (pinned.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">즐찾</span>${pinned.map(n => `<button type="button" class="hero-chip" data-q="${escapeHtml(n)}" onclick="applySearchSuggestion(this)">★ ${escapeHtml(n)}</button>`).join('')}</div>`; // 신입용 고정 물건 (사장님이 정해 둔 것)
         if (history.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">최근</span>${history.map(h => chip(h)).join('')}</div>`;
         if (frequent.length) html += `<div class="hero-quick-row"><span class="hero-quick-label">자주</span>${frequent.map(([n, c]) => chip(n, ` <small>${c}회</small>`)).join('')}</div>`;
-        quick.innerHTML = html || '<p class="hero-quick-tip">물건 이름, 초성(ㅅㄹ), 말로도 찾을 수 있어요</p>';
+        quick.innerHTML = html || '<p class="hero-quick-tip">앞 글자만 쳐도 돼요 (ㅇㅅㅈ → 영수증 용지) · 🎤 눌러 말로도</p>';
     }
 
     // 창고 브리핑 카드: 구역·물건·이번 주 찾음·부족 + 마지막 재고 확인. 숫자는 바뀌었을 때(처음 포함) 0부터 올라간다
@@ -5590,7 +5590,7 @@
     function activateHeroSearch(focused = false) {
         renderHeroHome();
         if (focused && !document.body.classList.contains('hero-search-focused')) heroFocusedAt = performance.now();
-        document.body.classList.add('hero-search-active');
+        document.body.classList.add('hero-search-active'); syncSearchHint();
         // 한 번 위로 올라가면 닫힐 때까지 위에 둔다 (키보드를 내려도 유지 — 목록을 누르는 도중 카드가 움직이면 탭이 빗나감)
         if (focused) document.body.classList.add('hero-search-focused');
         fitHeroDropdown();
@@ -5619,8 +5619,13 @@
         if (document.getElementById('searchBox').value.trim()) return; // 검색 중이면 검색 쪽 Esc가 먼저
         deactivateHeroSearch();
     });
+    // 검색창 안내: 홈 화면(넓은 칸)엔 다 적고, 위쪽 좁은 칸(폰)엔 예시만 — 다 적으면 끝이 잘렸다
+    function syncSearchHint() {
+        const box = document.getElementById('searchBox'); if (!box) return;
+        box.placeholder = document.body.classList.contains('hero-search-active') || window.innerWidth > 600 ? '찾을 물건 (예: 영수증 용지, ㅇㅅㅈ)' : '예: 영수증 용지, ㅇㅅㅈ';
+    }
     function deactivateHeroSearch() {
-        document.body.classList.remove('hero-search-active', 'hero-search-focused');
+        document.body.classList.remove('hero-search-active', 'hero-search-focused'); syncSearchHint();
         // 검색 카드를 내리면 결과 창도 같이 닫는다 ([창고 지도 보기]는 검색 카드 안 버튼이라 바깥 누르기로 닫히지 않아 결과 창이 남았다)
         const display = document.getElementById('searchResultDisplay'); if (display) display.style.display = 'none';
         const box = document.getElementById('searchBox'); if (box && document.activeElement === box) box.blur();
