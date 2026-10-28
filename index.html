@@ -850,6 +850,10 @@
         .stock-peek.is-over { color: #d0283a; font-weight: 800; }
         .stock-exp input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
         .stock-tab-off { display: none !important; }
+        /* [다 셌어요] 뒤 [발주 목록] 탭을 두 번 반짝: 모자란 것이 거기 모였다는 표시 */
+        #stockOrderTab.is-ping { animation: tab-ping 1.1s ease-in-out 2; }
+        @keyframes tab-ping { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 3px rgba(255,138,28,0.55); background: #fff3e6; color: #c25400; } }
+        @media (prefers-reduced-motion: reduce) { #stockOrderTab.is-ping { animation: none; outline: 2px solid #ff8a1c; } }
         .stock-order-row .t { flex: 1; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
         .stock-order-row small { display: block; font-size: 12px; color: var(--text3); }
         .stock-empty { padding: 28px 8px; text-align: center; color: var(--text3); font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
@@ -7539,8 +7543,10 @@
     function finishStockCount() {
         flushStockSave(); safeStorage.setItem(STOCK_COUNTED_KEY, String(Date.now())); recordStockCount(); stockRadarDue = true;
         const { lines } = stockOrderLines();
-        showToast(lines.length ? `모자란 물건 ${lines.length}개를 발주 목록에 모았어요` : '다 셌어요. 모자란 물건이 없어요');
-        setStockTab('order');
+        // 세기 화면에 그대로 둔다 (저절로 발주 목록으로 넘어가 버그처럼 보였다) → 알림 + [발주 목록] 탭만 반짝
+        showToast(lines.length ? `모자란 물건 ${lines.length}개를 위 [발주 목록]에 모았어요` : '다 셌어요. 모자란 물건이 없어요');
+        flushStockSave(); renderStock();
+        if (lines.length) { const t = document.getElementById('stockOrderTab'); t.classList.remove('is-ping'); void t.offsetWidth; t.classList.add('is-ping'); setTimeout(() => t.classList.remove('is-ping'), 2400); }
     }
     function stockOrderText() {
         const { lines } = stockOrderLines(), name = storeName();
